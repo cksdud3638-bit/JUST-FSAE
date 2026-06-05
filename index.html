@@ -1607,15 +1607,136 @@ function resetInspection() {
 }
 
 function exportInspectionPDF() {
-  const el = document.getElementById('tab-inspection');
   const date = new Date().toISOString().slice(0,10);
+  const logoSrc = document.querySelector('.header-logo img')?.src || '';
+
+  // Stats
+  let totalPass = 0, totalFail = 0, totalPending = 0, totalItems = 0;
+  INSP_DATA.forEach(cat => cat.items.forEach(it => {
+    totalItems++;
+    const st = S.inspection[it.id];
+    if (st === 'pass') totalPass++;
+    else if (st === 'fail') totalFail++;
+    else if (st === 'pending') totalPending++;
+  }));
+  const passRate = totalItems ? Math.round(totalPass / totalItems * 100) : 0;
+  const passColor = passRate === 100 ? '#16a34a' : passRate >= 60 ? '#d97706' : '#dc2626';
+
+  // D-day
+  const compDate = document.getElementById('comp-date')?.value || '';
+  let ddayHTML = '';
+  if (compDate) {
+    const diff = Math.ceil((new Date(compDate) - new Date()) / 86400000);
+    const ddayText = diff >= 0 ? 'D-' + diff : 'D+' + Math.abs(diff);
+    const ddayLabel = diff >= 0 ? '대회까지 남은 날' : '대회 종료 후';
+    ddayHTML = `<div style="font-size:26px;font-weight:900;color:#dc2626;line-height:1.1">${ddayText}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:2px">${ddayLabel} · ${compDate}</div>`;
+  }
+
+  // Part bars
+  const partBarsHTML = INSP_DATA.map(cat => {
+    const total = cat.items.length;
+    const pass = cat.items.filter(it => S.inspection[it.id] === 'pass').length;
+    const pct = total ? Math.round(pass / total * 100) : 0;
+    const c = pct === 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+    return `<div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="color:#374151">${cat.icon} ${cat.cat}</span>
+        <span style="color:${c};font-weight:700">${pass}/${total} · ${pct}%</span>
+      </div>
+      <div style="height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${c};border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Issues
+  const failItems = [], pendingItems = [];
+  INSP_DATA.forEach(cat => cat.items.forEach(it => {
+    const st = S.inspection[it.id];
+    if (st === 'fail') failItems.push({...it, catName: cat.cat});
+    else if (st === 'pending') pendingItems.push({...it, catName: cat.cat});
+  }));
+
+  const mkIssueRow = (it, color, bg, label) =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:${bg};border-left:3px solid ${color};border-radius:0 4px 4px 0;margin-bottom:5px;font-size:11.5px">
+      <span style="color:${color};font-weight:700;white-space:nowrap;min-width:36px">${label}</span>
+      <span style="flex:1;color:#111827">${it.name}</span>
+      <span style="color:#9ca3af;font-size:10px;font-family:monospace;white-space:nowrap">${it.ref}</span>
+    </div>`;
+
+  const failHTML = failItems.length
+    ? failItems.map(it => mkIssueRow(it,'#dc2626','#fef2f2','미통과')).join('')
+    : '<p style="color:#16a34a;font-size:12px;margin:4px 0">미통과 항목 없음 ✓</p>';
+
+  const pendingHTML = pendingItems.length
+    ? pendingItems.map(it => mkIssueRow(it,'#d97706','#fffbeb','확인중')).join('')
+    : '<p style="color:#16a34a;font-size:12px;margin:4px 0">확인중 항목 없음 ✓</p>';
+
+  const html = `<div style="background:#fff;color:#111827;font-family:Arial,sans-serif;padding:28px 32px;width:780px;box-sizing:border-box">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #dc2626;padding-bottom:14px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:14px">
+        ${logoSrc ? `<img src="${logoSrc}" style="height:46px;object-fit:contain">` : ''}
+        <div>
+          <div style="font-size:9px;color:#dc2626;font-weight:700;letter-spacing:3px;text-transform:uppercase">JUST FSAE</div>
+          <div style="font-size:17px;font-weight:800;color:#111827">인스펙션 체크리스트 보고서</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#6b7280">작성일: <strong style="color:#111827">${date}</strong></div>
+        <div style="margin-top:6px">${ddayHTML}</div>
+      </div>
+    </div>
+
+    <!-- Overall rate -->
+    <div style="text-align:center;padding:20px 16px;background:#f9fafb;border-radius:10px;margin-bottom:20px;border:1px solid #e5e7eb">
+      <div style="font-size:10px;color:#6b7280;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">전체 통과율</div>
+      <div style="font-size:60px;font-weight:900;color:${passColor};line-height:1">${passRate}%</div>
+      <div style="display:flex;justify-content:center;gap:28px;margin-top:14px">
+        <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#16a34a">${totalPass}</div><div style="font-size:10px;color:#6b7280">통과</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#dc2626">${totalFail}</div><div style="font-size:10px;color:#6b7280">미통과</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#d97706">${totalPending}</div><div style="font-size:10px;color:#6b7280">확인중</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:#9ca3af">${totalItems - totalPass - totalFail - totalPending}</div><div style="font-size:10px;color:#6b7280">미확인</div></div>
+      </div>
+    </div>
+
+    <!-- Part bars -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:#111827;margin-bottom:10px;border-left:4px solid #dc2626;padding-left:9px;letter-spacing:0.5px">파트별 통과율</div>
+      ${partBarsHTML}
+    </div>
+
+    <!-- Fail list -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px;border-left:4px solid #dc2626;padding-left:9px">미통과 항목 (${failItems.length})</div>
+      ${failHTML}
+    </div>
+
+    <!-- Pending list -->
+    <div style="margin-bottom:28px">
+      <div style="font-size:12px;font-weight:700;color:#d97706;margin-bottom:8px;border-left:4px solid #d97706;padding-left:9px">확인중 항목 (${pendingItems.length})</div>
+      ${pendingHTML}
+    </div>
+
+    <!-- Footer -->
+    <div style="border-top:1px solid #e5e7eb;padding-top:10px;text-align:center">
+      <div style="font-size:10px;color:#9ca3af">본 보고서는 JUST FSAE팀 내부 점검용입니다</div>
+    </div>
+  </div>`;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;background:#fff';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+
   html2pdf().set({
-    margin: [10,10,10,10],
+    margin: 0,
     filename: 'JUST_Inspection_' + date + '.pdf',
-    image: { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' },
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(el).save();
+  }).from(wrap.firstElementChild).save().then(() => document.body.removeChild(wrap));
 }
 
 function exportBudgetPDF() {
