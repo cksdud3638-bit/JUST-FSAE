@@ -368,35 +368,6 @@ textarea.form-control{resize:vertical;min-height:80px}
     </div>
   </div>
 
-  <!-- 통과율 리포트 -->
-  <div class="report-section">
-    <div class="flex justify-between items-center mb-4" style="flex-wrap:wrap;gap:10px">
-      <div class="card-title" style="margin-bottom:0"><span class="dot"></span>통과율 리포트</div>
-      <div class="flex items-center gap-3" style="flex-wrap:wrap">
-        <div class="flex items-center gap-3">
-          <label style="font-size:12px;color:var(--gray);white-space:nowrap">대회 날짜</label>
-          <input type="date" id="comp-date" class="form-control" style="width:160px;padding:6px 10px;font-size:13px">
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 리포트 인쇄</button>
-      </div>
-    </div>
-    <div class="grid-2" style="gap:24px">
-      <div>
-        <div id="dday-wrap" style="display:none;margin-bottom:16px">
-          <div class="dday-box">
-            <div class="dday-num" id="dday-num">D-?</div>
-            <div class="dday-lbl" id="dday-lbl">대회까지 남은 날</div>
-          </div>
-        </div>
-        <div id="report-part-bars"><div style="color:#555;font-size:12px;text-align:center;padding:20px">체크리스트를 채우면 파트별 통과율이 표시됩니다</div></div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--gray);font-weight:600;letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase">미통과 / 확인중 항목</div>
-        <div id="report-issues"><div style="color:#555;font-size:12px;text-align:center;padding:20px">이슈 항목이 없습니다</div></div>
-      </div>
-    </div>
-  </div>
-
   <!-- Overview Stats -->
   <div class="grid-4 mb-6">
     <div class="stat-card green">
@@ -426,6 +397,35 @@ textarea.form-control{resize:vertical;min-height:80px}
   </div>
 
   <div id="inspection-categories"></div>
+
+  <!-- 통과율 리포트 -->
+  <div class="report-section" style="margin-top:24px;margin-bottom:0">
+    <div class="flex justify-between items-center mb-4" style="flex-wrap:wrap;gap:10px">
+      <div class="card-title" style="margin-bottom:0"><span class="dot"></span>통과율 리포트</div>
+      <div class="flex items-center gap-3" style="flex-wrap:wrap">
+        <div class="flex items-center gap-3">
+          <label style="font-size:12px;color:var(--gray);white-space:nowrap">대회 날짜</label>
+          <input type="date" id="comp-date" class="form-control" style="width:160px;padding:6px 10px;font-size:13px">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 리포트 인쇄</button>
+      </div>
+    </div>
+    <div class="grid-2" style="gap:24px">
+      <div>
+        <div id="dday-wrap" style="display:none;margin-bottom:16px">
+          <div class="dday-box">
+            <div class="dday-num" id="dday-num">D-?</div>
+            <div class="dday-lbl" id="dday-lbl">대회까지 남은 날</div>
+          </div>
+        </div>
+        <div id="report-part-bars"><div style="color:#555;font-size:12px;text-align:center;padding:20px">체크리스트를 채우면 파트별 통과율이 표시됩니다</div></div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--gray);font-weight:600;letter-spacing:1.5px;margin-bottom:10px;text-transform:uppercase">미통과 / 확인중 항목</div>
+        <div id="report-issues"><div style="color:#555;font-size:12px;text-align:center;padding:20px">이슈 항목이 없습니다</div></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════
@@ -2284,6 +2284,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.setupHistory) S.setupHistory = data.setupHistory;
     if (data.budget)       S.budget       = data.budget;
     if (data.lastSave) { const el = document.getElementById('save-time'); if (el) el.textContent = '마지막 저장: ' + data.lastSave; }
+    if (data.compDate != null) {
+      const el = document.getElementById('comp-date');
+      if (el && el.value !== data.compDate) { el.value = data.compDate; renderReport(); }
+    }
     renderLapTable();
     renderDriverStats();
     renderTestLogs();
@@ -2322,11 +2326,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-set-budget-limit').addEventListener('click', setBudgetLimit);
   document.getElementById('btn-add-expense').addEventListener('click', addExpense);
 
-  // 대회 날짜 복원 및 변경 감지
-  const savedCompDate = localStorage.getItem('just_comp_date');
-  if (savedCompDate) { const el=document.getElementById('comp-date'); if(el) el.value=savedCompDate; }
+  // 대회 날짜 변경 감지 → Firebase에 저장
   document.getElementById('comp-date').addEventListener('change', function() {
-    localStorage.setItem('just_comp_date', this.value);
+    db.ref('just/compDate').set(this.value);
     renderReport();
   });
 
