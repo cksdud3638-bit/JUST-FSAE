@@ -1950,8 +1950,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // UI 구조 먼저 생성
   buildInspection();
 
-  // Firebase에서 데이터 로드 (최초 1회)
-  db.ref('just').once('value', function(snapshot) {
+  // Firebase 전체 실시간 동기화
+  db.ref('just').on('value', function(snapshot) {
     const data = snapshot.val() || {};
     if (data.lapTimes)    S.lapTimes    = data.lapTimes;
     if (data.testLogs)    S.testLogs    = data.testLogs;
