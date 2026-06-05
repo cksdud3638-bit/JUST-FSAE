@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -363,7 +364,7 @@ textarea.form-control{resize:vertical;min-height:80px}
     </div>
     <div class="flex gap-3">
       <button class="btn btn-secondary btn-sm" onclick="resetInspection()">초기화</button>
-      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 인쇄</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportInspectionPDF()">⬇ PDF 내보내기</button>
       <button class="btn btn-primary btn-sm" onclick="exportInspection()">내보내기</button>
     </div>
   </div>
@@ -407,7 +408,7 @@ textarea.form-control{resize:vertical;min-height:80px}
           <label style="font-size:12px;color:var(--gray);white-space:nowrap">대회 날짜</label>
           <input type="date" id="comp-date" class="form-control" style="width:160px;padding:6px 10px;font-size:13px">
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 리포트 인쇄</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportInspectionPDF()">⬇ PDF 내보내기</button>
       </div>
     </div>
     <div class="grid-2" style="gap:24px">
@@ -871,7 +872,7 @@ textarea.form-control{resize:vertical;min-height:80px}
       <div class="section-sub">파트별 예산 한도 및 지출 내역 실시간 공유</div>
     </div>
     <div class="flex gap-3">
-      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 PDF 출력</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportBudgetPDF()">⬇ PDF 내보내기</button>
     </div>
   </div>
 
@@ -1603,6 +1604,30 @@ function resetInspection() {
   S.inspection = {};
   save('inspection');
   buildInspection();
+}
+
+function exportInspectionPDF() {
+  const el = document.getElementById('tab-inspection');
+  const date = new Date().toISOString().slice(0,10);
+  html2pdf().set({
+    margin: [10,10,10,10],
+    filename: 'JUST_Inspection_' + date + '.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(el).save();
+}
+
+function exportBudgetPDF() {
+  const el = document.getElementById('tab-budget');
+  const date = new Date().toISOString().slice(0,10);
+  html2pdf().set({
+    margin: [10,10,10,10],
+    filename: 'JUST_Budget_' + date + '.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(el).save();
 }
 
 function exportInspection() {
