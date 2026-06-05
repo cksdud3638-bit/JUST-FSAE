@@ -1970,11 +1970,12 @@ document.addEventListener('DOMContentLoaded', () => {
   db.ref('just/inspection').on('value', function(snapshot) {
     const newState = snapshot.val() || {};
     S.inspection = newState;
+    // 전체 초기화 후 활성 상태만 적용 (취소된 항목도 정확히 반영)
+    document.querySelectorAll('.insp-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.insp-item').forEach(function(r) { r.classList.remove('fail'); });
     Object.entries(newState).forEach(function([id, state]) {
       const row = document.getElementById('row-' + id);
       if (!row) return;
-      row.querySelectorAll('.insp-btn').forEach(function(b) { b.classList.remove('active'); });
-      row.classList.remove('fail');
       const target = row.querySelector('.insp-btn.' + state);
       if (target) { target.classList.add('active'); if (state === 'fail') row.classList.add('fail'); }
     });
