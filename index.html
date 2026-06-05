@@ -6,6 +6,8 @@
 <title>JUST FSAE 통합 관리 시스템</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -810,18 +812,29 @@ textarea.form-control{resize:vertical;min-height:80px}
 // ═══════════════════════════════════════════════════════
 // STATE & STORAGE
 // ═══════════════════════════════════════════════════════
+firebase.initializeApp({
+  apiKey: "AIzaSyC7cgD6z4EzdKFUwELx6omxiqH56H3xj2Q",
+  authDomain: "just-fsae.firebaseapp.com",
+  databaseURL: "https://just-fsae-default-rtdb.firebaseio.com",
+  projectId: "just-fsae",
+  storageBucket: "just-fsae.firebasestorage.app",
+  messagingSenderId: "132875342018",
+  appId: "1:132875342018:web:d962c5342ff47968b3eb5b"
+});
+const db = firebase.database();
+
 const S = {
-  inspection: JSON.parse(localStorage.getItem('just_inspection') || '{}'),
-  lapTimes: JSON.parse(localStorage.getItem('just_laptimes') || '[]'),
-  testLogs: JSON.parse(localStorage.getItem('just_testlogs') || '[]'),
-  feedbacks: JSON.parse(localStorage.getItem('just_feedbacks') || '[]'),
-  setupHistory: JSON.parse(localStorage.getItem('just_setuphistory') || '[]'),
+  inspection: {},
+  lapTimes: [],
+  testLogs: [],
+  feedbacks: [],
+  setupHistory: [],
 };
 function save(key) {
-  localStorage.setItem('just_' + key, JSON.stringify(S[key]));
+  db.ref('just/' + key).set(S[key]);
   const now = new Date();
   const t = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
-  localStorage.setItem('just_lastSave', t);
+  db.ref('just/lastSave').set(t);
   const el = document.getElementById('save-time');
   if (el) el.textContent = '마지막 저장: ' + t;
 }
@@ -1934,16 +1947,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if(el) el.value=today;
   });
 
-  const savedTime = localStorage.getItem('just_lastSave');
-  if (savedTime) { const el = document.getElementById('save-time'); if (el) el.textContent = '마지막 저장: ' + savedTime; }
-
+  // UI 구조 먼저 생성
   buildInspection();
-  renderLapTable();
-  renderDriverStats();
-  renderTestLogs();
-  renderSetupHistory();
-  populateSetupLinks();
-  calcFuel();
+
+  // Firebase에서 데이터 로드 (최초 1회)
+  db.ref('just').once('value', function(snapshot) {
+    const data = snapshot.val() || {};
+    if (data.lapTimes)    S.lapTimes    = data.lapTimes;
+    if (data.testLogs)    S.testLogs    = data.testLogs;
+    if (data.feedbacks)   S.feedbacks   = data.feedbacks;
+    if (data.setupHistory) S.setupHistory = data.setupHistory;
+    if (data.lastSave) { const el = document.getElementById('save-time'); if (el) el.textContent = '마지막 저장: ' + data.lastSave; }
+    renderLapTable();
+    renderDriverStats();
+    renderTestLogs();
+    renderSetupHistory();
+    populateSetupLinks();
+    calcFuel();
+  });
+
+  // 체크리스트 실시간 동기화 (팀원 전체 공유)
+  db.ref('just/inspection').on('value', function(snapshot) {
+    const newState = snapshot.val() || {};
+    S.inspection = newState;
+    Object.entries(newState).forEach(function([id, state]) {
+      const row = document.getElementById('row-' + id);
+      if (!row) return;
+      row.querySelectorAll('.insp-btn').forEach(function(b) { b.classList.remove('active'); });
+      row.classList.remove('fail');
+      const target = row.querySelector('.insp-btn.' + state);
+      if (target) { target.classList.add('active'); if (state === 'fail') row.classList.add('fail'); }
+    });
+    updateInspStats();
+  });
 
   // Init rating sliders
   ['handling','braking','accel','comfort','overall'].forEach(k => updateRating(k, 5));
