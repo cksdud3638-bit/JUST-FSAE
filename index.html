@@ -969,8 +969,8 @@
               <div class="pos-axle-mark-top">앞차축<br><span>0</span></div>
               <div class="pos-axle-mark-line"></div>
             </div>
-            <div class="pos-axle-mark" id="pos-mark-rear" style="left:76.79%">
-              <div class="pos-axle-mark-top">뒤차축<br><span id="pos-wb-label">1550</span></div>
+            <div class="pos-axle-mark" id="pos-mark-rear" style="left:78.57%">
+              <div class="pos-axle-mark-top">뒤차축<br><span id="pos-wb-label">1600</span></div>
               <div class="pos-axle-mark-line"></div>
             </div>
           </div>
@@ -1042,13 +1042,32 @@
   <!-- 예상 전후 무게 배분 -->
   <div class="card mt-6">
     <div class="card-title"><span class="dot" style="background:#0088ff"></span>예상 전후 무게 배분</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-      <span style="font-size:12px;color:#666;flex-shrink:0">휠베이스</span>
-      <input type="number" class="form-control" id="pt-wheelbase" value="1550"
-        placeholder="1550" style="width:90px;flex-shrink:0"
-        oninput="updateWheelbaseMarkers();renderWeightDistribution()">
-      <span style="font-size:12px;color:#666;flex-shrink:0">mm</span>
-      <button class="btn btn-ghost btn-sm" onclick="saveWheelbase()">저장</button>
+    <div class="wd-config-row">
+      <div class="wd-config-item">
+        <div class="wd-config-label">휠베이스</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input type="number" class="form-control" id="pt-wheelbase" value="1600"
+            placeholder="1600" style="width:80px"
+            oninput="updateWheelbaseMarkers();renderWeightDistribution()">
+          <span style="font-size:12px;color:#666">mm</span>
+        </div>
+      </div>
+      <div class="wd-config-item">
+        <div class="wd-config-label">목표 전륜 배분</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input type="number" class="form-control" id="pt-target-front-pct" value="45"
+            min="10" max="90" style="width:65px"
+            oninput="syncTargetPct();renderWeightDistribution()">
+          <span style="font-size:12px;color:#666">%</span>
+        </div>
+      </div>
+      <div class="wd-config-item">
+        <div class="wd-config-label">목표 후륜 배분</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div id="pt-target-rear-display" style="font-size:20px;font-weight:700;color:#ee3300">55%</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="saveVehicleConfig()">저장</button>
     </div>
     <div id="wd-result">
       <div class="empty-state" style="padding:20px">

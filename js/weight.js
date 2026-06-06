@@ -37,7 +37,7 @@ function updateSliderFill() {
 
 function updateWheelbaseMarkers() {
   const wbEl = document.getElementById('pt-wheelbase');
-  const wb = wbEl ? (parseFloat(wbEl.value) || S.wheelbase || 1550) : (S.wheelbase || 1550);
+  const wb = wbEl ? (parseFloat(wbEl.value) || S.wheelbase || 1600) : (S.wheelbase || 1600);
   S.wheelbase = wb;
   const range = POS_SLIDER_MAX - POS_SLIDER_MIN;
   const frontPct = ((0 - POS_SLIDER_MIN) / range * 100).toFixed(2);
@@ -50,10 +50,21 @@ function updateWheelbaseMarkers() {
   if (wbLbl) wbLbl.textContent = wb;
 }
 
-function saveWheelbase() {
+function syncTargetPct() {
+  const tgtEl = document.getElementById('pt-target-front-pct');
+  const rearEl = document.getElementById('pt-target-rear-display');
+  if (!tgtEl) return;
+  const front = Math.min(90, Math.max(10, parseFloat(tgtEl.value) || 45));
+  if (rearEl) rearEl.textContent = (100 - front).toFixed(0) + '%';
+  S.targetFrontPct = front;
+}
+
+function saveVehicleConfig() {
   updateWheelbaseMarkers();
-  renderWeightDistribution();
+  syncTargetPct();
   save('wheelbase');
+  save('targetFrontPct');
+  renderWeightDistribution();
 }
 
 // ── Parts CRUD ───────────────────────────────
@@ -191,72 +202,119 @@ function restoreCornerWeights() {
 
 // ── Weight distribution ───────────────────────
 function calcWeightDistribution() {
-  const wb = parseFloat(document.getElementById('pt-wheelbase')?.value) || S.wheelbase || 1550;
+  const wb = parseFloat(document.getElementById('pt-wheelbase')?.value) || S.wheelbase || 1600;
+  const targetFront = parseFloat(document.getElementById('pt-target-front-pct')?.value) || S.targetFrontPct || 45;
   if (wb <= 0) return null;
-  let frontLoad = 0, rearLoad = 0, posCount = 0;
+
+  let M = 0, momentSum = 0, posCount = 0, missingCount = 0, missingWeight = 0;
   S.parts.forEach(p => {
-    if (p.axlePos == null || p.axlePos === '' || isNaN(parseFloat(p.axlePos))) return;
-    const x = parseFloat(p.axlePos);
     const w = (p.weight || 0) * (p.qty || 1);
-    if (w <= 0) return;
-    frontLoad += w * (wb - x) / wb;
-    rearLoad  += w * x / wb;
+    if (p.axlePos == null || p.axlePos === '' || isNaN(parseFloat(p.axlePos))) {
+      missingCount++;
+      missingWeight += w;
+      return;
+    }
+    const x = parseFloat(p.axlePos);
+    M += w;
+    momentSum += w * x;
     posCount++;
   });
-  const total = frontLoad + rearLoad;
-  if (total <= 0 || posCount === 0) return null;
+
+  if (M <= 0 || posCount === 0) return null;
+
+  // xCG: 무게중심 위치 (앞차축 기준 mm)
+  const xCG = momentSum / M;
+  // 후륜 하중: 전체질량 × 무게중심/휠베이스 (전륜 기준 모멘트 평형)
+  const WR = M * xCG / wb;
+  const WF = M - WR;
+
   return {
-    frontLoad, rearLoad, total,
-    frontPct: frontLoad / total * 100,
-    rearPct:  rearLoad  / total * 100,
-    posCount, totalParts: S.parts.length, wb,
+    M, xCG, WF, WR,
+    frontPct: WF / M * 100,
+    rearPct:  WR / M * 100,
+    posCount, totalParts: S.parts.length,
+    missingCount, missingWeight,
+    wb, targetFront,
+    targetDiff: (WF / M * 100) - targetFront,
   };
 }
 
 function renderWeightDistribution() {
   const panel = document.getElementById('wd-result');
   if (!panel) return;
-  // Init wheelbase input from state if empty
-  const wbEl = document.getElementById('pt-wheelbase');
-  if (wbEl && !wbEl.value && S.wheelbase) wbEl.value = S.wheelbase;
+
+  // Sync inputs from S state if empty
+  const wbEl  = document.getElementById('pt-wheelbase');
+  const tgtEl = document.getElementById('pt-target-front-pct');
+  if (wbEl  && !wbEl.value)  wbEl.value  = S.wheelbase      || 1600;
+  if (tgtEl && !tgtEl.value) tgtEl.value = S.targetFrontPct || 45;
+  syncTargetPct();
   updateWheelbaseMarkers();
-  const res = calcWeightDistribution();
-  if (!res) {
-    panel.innerHTML = `<div class="empty-state" style="padding:20px">
-      <div class="empty-icon">⚖️</div>
-      <p>부품 등록 시 앞차축 기준 위치를 입력하면<br>전후 무게 배분이 자동 계산됩니다</p>
-    </div>`;
+
+  if (!S.parts.length) {
+    panel.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-icon">⚖️</div><p>부품을 등록하면 전후 배분이 계산됩니다</p></div>`;
     return;
   }
-  const fp = res.frontPct.toFixed(1), rp = res.rearPct.toFixed(1);
-  const warn = res.posCount < res.totalParts
-    ? `<div class="wd-warn">⚠ ${res.totalParts - res.posCount}개 부품 위치 미입력 — 계산 제외됨</div>` : '';
-  let statusMsg = '—', statusColor = '#555';
-  if (res.frontPct >= 40 && res.frontPct <= 50)     { statusMsg = '✅ 이상적 전후 배분 (40–50% 전방)'; statusColor = '#00cc66'; }
-  else if (res.frontPct >= 35 && res.frontPct < 40) { statusMsg = '전방 하중 약간 부족'; statusColor = '#ffaa00'; }
-  else if (res.frontPct > 50 && res.frontPct <= 55) { statusMsg = '전방 하중 약간 과다'; statusColor = '#ffaa00'; }
-  else if (res.frontPct < 35)                        { statusMsg = '⚠ 전방 하중 부족 — 언더스티어 경향'; statusColor = '#ff4444'; }
-  else if (res.frontPct > 55)                        { statusMsg = '⚠ 전방 하중 과다 — 오버스티어 경향'; statusColor = '#ff4444'; }
+  const res = calcWeightDistribution();
+  if (!res) {
+    panel.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-icon">⚖️</div><p>부품에 앞차축 기준 위치를 입력하면<br>전후 무게 배분이 자동 계산됩니다</p></div>`;
+    return;
+  }
+
+  const fp   = res.frontPct.toFixed(1);
+  const rp   = res.rearPct.toFixed(1);
+  const diff = res.targetDiff;
+  const diffStr   = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
+  const diffColor = Math.abs(diff) <= 1 ? '#00cc66' : Math.abs(diff) <= 3 ? '#ffaa00' : '#ff4444';
+
+  let statusMsg = '', statusColor = '#888';
+  if (Math.abs(diff) <= 1)      { statusMsg = '✅ 목표 배분 달성'; statusColor = '#00cc66'; }
+  else if (Math.abs(diff) <= 3) { statusMsg = `목표 대비 ${diffStr} — 양호`; statusColor = '#ffaa00'; }
+  else if (Math.abs(diff) <= 5) { statusMsg = `목표 대비 ${diffStr} — 조정 권장`; statusColor = '#ff8800'; }
+  else                          { statusMsg = `목표 대비 ${diffStr} — 개선 필요`; statusColor = '#ff4444'; }
+
+  const MKg  = (res.M  / 1000).toFixed(2);
+  const WFKg = (res.WF / 1000).toFixed(2);
+  const WRKg = (res.WR / 1000).toFixed(2);
+  const xCGmm = Math.round(res.xCG);
+
+  const warn = res.missingCount > 0
+    ? `<div class="wd-warn">⚠ 위치 미입력 ${res.missingCount}개 부품 (${fmtWeight(res.missingWeight)}) — 계산 제외됨</div>` : '';
+
   panel.innerHTML = `
     ${warn}
+    <div class="wd-result-grid">
+      <div class="wd-res-card">
+        <div class="wd-res-label">계산 포함 총중량</div>
+        <div class="wd-res-val" style="color:#ffaa00">${MKg}</div>
+        <div class="wd-res-unit">kg</div>
+      </div>
+      <div class="wd-res-card">
+        <div class="wd-res-label">예상 전륜 하중</div>
+        <div class="wd-res-val" style="color:#0088ff">${WFKg}</div>
+        <div class="wd-res-unit">kg</div>
+      </div>
+      <div class="wd-res-card">
+        <div class="wd-res-label">예상 후륜 하중</div>
+        <div class="wd-res-val" style="color:#ee3300">${WRKg}</div>
+        <div class="wd-res-unit">kg</div>
+      </div>
+      <div class="wd-res-card">
+        <div class="wd-res-label">무게중심 위치</div>
+        <div class="wd-res-val" style="color:#cc66ff">${xCGmm}</div>
+        <div class="wd-res-unit">mm (앞차축 기준)</div>
+      </div>
+    </div>
     <div class="wd-bar-wrap">
-      <div class="wd-bar-front" style="width:${fp}%">${parseFloat(fp) > 15 ? '앞 ' + fp + '%' : ''}</div>
-      <div class="wd-bar-rear">${parseFloat(rp) > 15 ? '뒤 ' + rp + '%' : ''}</div>
+      <div class="wd-bar-front" style="width:${fp}%">${parseFloat(fp) > 12 ? '전방 ' + fp + '%' : ''}</div>
+      <div class="wd-bar-rear">${parseFloat(rp) > 12 ? '후방 ' + rp + '%' : ''}</div>
     </div>
-    <div class="wd-stats">
-      <div class="wd-stat-item">
-        <div class="wd-stat-lbl">전방 하중</div>
-        <div class="wd-stat-val" style="color:#0088ff">${fp}%</div>
-        <div style="font-size:11px;color:#555;margin-top:3px">${fmtWeight(Math.round(res.frontLoad))}</div>
-      </div>
-      <div class="wd-stat-item">
-        <div class="wd-stat-lbl">후방 하중</div>
-        <div class="wd-stat-val" style="color:#ee3300">${rp}%</div>
-        <div style="font-size:11px;color:#555;margin-top:3px">${fmtWeight(Math.round(res.rearLoad))}</div>
-      </div>
+    <div class="wd-target-row">
+      <span style="color:#666;font-size:12px">목표 전방 ${res.targetFront.toFixed(0)}% : 후방 ${(100 - res.targetFront).toFixed(0)}%</span>
+      <span style="color:${diffColor};font-weight:700;font-size:13px">차이 ${diffStr}</span>
     </div>
-    <div style="font-size:12px;text-align:center;padding:6px 0 8px;color:${statusColor}">${statusMsg}</div>
-    <div style="font-size:11px;color:#444;text-align:right">휠베이스 ${res.wb}mm · ${res.posCount}/${res.totalParts}개 부품 반영</div>
+    <div style="font-size:12px;text-align:center;padding:6px 0 4px;color:${statusColor}">${statusMsg}</div>
+    <div style="font-size:11px;color:#444;text-align:right;margin-top:4px">휠베이스 ${res.wb}mm · ${res.posCount}/${res.totalParts}개 부품 반영</div>
   `;
 }
 

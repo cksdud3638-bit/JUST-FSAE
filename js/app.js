@@ -159,6 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const wbEl = document.getElementById('pt-wheelbase');
       if (wbEl) wbEl.value = S.wheelbase;
     }
+    if (data.targetFrontPct != null) {
+      S.targetFrontPct = data.targetFrontPct;
+      const tgtEl = document.getElementById('pt-target-front-pct');
+      if (tgtEl) { tgtEl.value = S.targetFrontPct; syncTargetPct(); }
+    }
 
     // Legacy save-time display
     if (data.lastSave) {

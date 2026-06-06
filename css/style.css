@@ -359,3 +359,12 @@ textarea.form-control{resize:vertical;min-height:80px}
 .wd-stat-val{font-size:24px;font-weight:700;margin:4px 0 2px}
 .wd-stat-lbl{font-size:11px;color:#666}
 .wd-warn{font-size:11px;color:#ffaa00;margin-bottom:10px;padding:6px 10px;background:rgba(255,170,0,0.08);border-radius:6px;border:1px solid rgba(255,170,0,0.2)}
+.wd-config-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;padding:12px 14px;background:#111;border-radius:8px;border:1px solid #1e1e1e}
+.wd-config-item{display:flex;flex-direction:column;gap:5px}
+.wd-config-label{font-size:11px;color:#666;letter-spacing:0.3px}
+.wd-result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.wd-res-card{background:#1a1a1a;border-radius:8px;padding:12px;text-align:center;border:1px solid #222}
+.wd-res-label{font-size:11px;color:#666;margin-bottom:4px}
+.wd-res-val{font-size:20px;font-weight:700;margin:4px 0 2px;line-height:1.1}
+.wd-res-unit{font-size:10px;color:#444;line-height:1.4}
+.wd-target-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#1a1a1a;border-radius:8px;margin-bottom:6px;border:1px solid #222}
