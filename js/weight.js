@@ -3,6 +3,8 @@
 // ═══════════════════════════════════════════════
 let partsWeightChart = null, partsCostChart = null;
 const PARTS_COLORS = ['#ff0000','#00cc66','#0088ff','#ffaa00','#cc66ff','#ff6688','#00cccc','#ff8800'];
+const POS_SLIDER_MIN = -600;
+const POS_SLIDER_MAX = 2200;
 
 function fmtWeight(g) {
   if (!g && g !== 0) return '0 g';
@@ -11,6 +13,50 @@ function fmtWeight(g) {
   return n.toLocaleString() + ' g';
 }
 
+// ── Slider sync ──────────────────────────────
+function syncPosSlider(src) {
+  const numEl = document.getElementById('pt-axle-pos');
+  const sldEl = document.getElementById('pt-pos-slider');
+  if (!numEl || !sldEl) return;
+  if (src === 'num') {
+    const val = Math.max(POS_SLIDER_MIN, Math.min(POS_SLIDER_MAX, parseFloat(numEl.value) || 0));
+    sldEl.value = val;
+    numEl.value = val;
+  } else {
+    numEl.value = parseInt(sldEl.value);
+  }
+  updateSliderFill();
+}
+
+function updateSliderFill() {
+  const sldEl = document.getElementById('pt-pos-slider');
+  if (!sldEl) return;
+  const pct = ((parseFloat(sldEl.value) - POS_SLIDER_MIN) / (POS_SLIDER_MAX - POS_SLIDER_MIN)) * 100;
+  sldEl.style.background = `linear-gradient(to right,#ff0000 0%,#ff0000 ${pct}%,#2a2a2a ${pct}%,#2a2a2a 100%)`;
+}
+
+function updateWheelbaseMarkers() {
+  const wbEl = document.getElementById('pt-wheelbase');
+  const wb = wbEl ? (parseFloat(wbEl.value) || S.wheelbase || 1550) : (S.wheelbase || 1550);
+  S.wheelbase = wb;
+  const range = POS_SLIDER_MAX - POS_SLIDER_MIN;
+  const frontPct = ((0 - POS_SLIDER_MIN) / range * 100).toFixed(2);
+  const rearPct  = Math.min(((wb - POS_SLIDER_MIN) / range * 100), 99).toFixed(2);
+  const fm = document.getElementById('pos-mark-front');
+  const rm = document.getElementById('pos-mark-rear');
+  if (fm) fm.style.left = frontPct + '%';
+  if (rm) rm.style.left = rearPct + '%';
+  const wbLbl = document.getElementById('pos-wb-label');
+  if (wbLbl) wbLbl.textContent = wb;
+}
+
+function saveWheelbase() {
+  updateWheelbaseMarkers();
+  renderWeightDistribution();
+  save('wheelbase');
+}
+
+// ── Parts CRUD ───────────────────────────────
 function addPart() {
   const name      = v('pt-name').trim();
   const cat       = v('pt-cat');
@@ -20,8 +66,11 @@ function addPart() {
   const note      = v('pt-note').trim();
   const valueType = v('pt-value-type') || '측정';
   const installed = document.getElementById('pt-installed')?.checked || false;
+  const axlePosRaw = document.getElementById('pt-axle-pos')?.value;
+  const axlePos   = (axlePosRaw !== '' && axlePosRaw != null) ? parseFloat(axlePosRaw) : null;
+  const posType   = v('pt-pos-type') || '실측';
   if (!name) { alert('부품명을 입력하세요.'); return; }
-  S.parts.push({ id: Date.now(), name, cat, weight, cost, qty, note, valueType, installed });
+  S.parts.push({ id: Date.now(), name, cat, weight, cost, qty, note, valueType, installed, axlePos, posType });
   save('parts');
   renderParts();
   document.getElementById('pt-name').value   = '';
@@ -31,6 +80,10 @@ function addPart() {
   document.getElementById('pt-note').value   = '';
   const instEl = document.getElementById('pt-installed');
   if (instEl) instEl.checked = false;
+  const posEl = document.getElementById('pt-axle-pos');
+  const sldEl = document.getElementById('pt-pos-slider');
+  if (posEl) posEl.value = '0';
+  if (sldEl) { sldEl.value = '0'; updateSliderFill(); }
 }
 
 function deletePart(id) {
@@ -43,8 +96,10 @@ function renderParts() {
   renderPartsTable();
   renderPartsSummary();
   renderPartsCharts();
+  renderWeightDistribution();
 }
 
+// ── Table ─────────────────────────────────────
 function renderPartsTable() {
   const tbody = document.getElementById('parts-tbody');
   const empty = document.getElementById('parts-empty');
@@ -62,12 +117,16 @@ function renderPartsTable() {
     const tc = p.cost   * p.qty;
     totalWeight += tw; totalCost += tc; totalQty += p.qty;
     const vtColor = p.valueType === '측정' ? '#00cc66' : p.valueType === '카탈로그' ? '#0088ff' : '#ffaa00';
+    const posCell = p.axlePos != null
+      ? `<span style="color:#aaa">${p.axlePos}mm</span>${p.posType ? `<br><span style="color:#444;font-size:10px">${p.posType}</span>` : ''}`
+      : '<span style="color:#333">—</span>';
     return `<tr>
       <td style="color:#555">${i + 1}</td>
       <td style="font-weight:600;color:#ddd">${p.name}</td>
       <td><span style="background:#1e1e1e;border-radius:4px;padding:2px 8px;font-size:11px;color:#aaa">${p.cat}</span></td>
       <td style="font-size:11px"><span style="color:${vtColor}">${p.valueType||'측정'}</span></td>
       <td style="text-align:center">${p.installed ? '<span style="color:#00cc66;font-size:13px">✓</span>' : '<span style="color:#333;font-size:13px">—</span>'}</td>
+      <td style="font-size:11px;line-height:1.4">${posCell}</td>
       <td style="color:#ccc">${fmtWeight(p.weight)}</td>
       <td style="color:#ccc">${p.qty}</td>
       <td style="color:#ffaa00;font-weight:600">${fmtWeight(tw)}</td>
@@ -87,44 +146,33 @@ function updatePartsTotals(w, c, cats, qty) {
   set('pt-total-cost',   c.toLocaleString());
   set('pt-total-count',  (qty || 0));
   set('pt-cat-count',    cats);
-
   const target = parseFloat(document.getElementById('pt-target-weight')?.value) || 0;
   const diffEl = document.getElementById('pt-weight-diff');
   if (diffEl && target > 0) {
     const diff = w - target;
-    if (diff > 0) {
-      diffEl.textContent = '+' + fmtWeight(diff) + ' 초과';
-      diffEl.style.color = '#ff4444';
-    } else if (diff < 0) {
-      diffEl.textContent = fmtWeight(Math.abs(diff)) + ' 여유';
-      diffEl.style.color = '#00cc66';
-    } else {
-      diffEl.textContent = '목표 달성';
-      diffEl.style.color = '#ffaa00';
-    }
+    if (diff > 0)      { diffEl.textContent = '+' + fmtWeight(diff) + ' 초과'; diffEl.style.color = '#ff4444'; }
+    else if (diff < 0) { diffEl.textContent = fmtWeight(Math.abs(diff)) + ' 여유'; diffEl.style.color = '#00cc66'; }
+    else               { diffEl.textContent = '목표 달성'; diffEl.style.color = '#ffaa00'; }
   } else if (diffEl) {
-    diffEl.textContent = '—';
-    diffEl.style.color = '#555';
+    diffEl.textContent = '—'; diffEl.style.color = '#555';
   }
 }
 
+// ── Corner weights ────────────────────────────
 function calcCornerWeights() {
   const get = id => parseFloat(document.getElementById(id)?.value) || 0;
   const fl = get('cw-fl'), fr = get('cw-fr'), rl = get('cw-rl'), rr = get('cw-rr');
   const total = fl + fr + rl + rr;
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   if (total <= 0) {
-    set('cw-total', '—'); set('cw-front-pct', '—'); set('cw-rear-pct', '—');
-    set('cw-left-pct', '—'); set('cw-right-pct', '—');
+    ['cw-total','cw-front-pct','cw-rear-pct','cw-left-pct','cw-right-pct'].forEach(id => set(id, '—'));
     return;
   }
-  const front = fl + fr, rear = rl + rr;
-  const left  = fl + rl, right = fr + rr;
   set('cw-total',     total.toFixed(1) + ' kg');
-  set('cw-front-pct', (front / total * 100).toFixed(1) + '%');
-  set('cw-rear-pct',  (rear  / total * 100).toFixed(1) + '%');
-  set('cw-left-pct',  (left  / total * 100).toFixed(1) + '%');
-  set('cw-right-pct', (right / total * 100).toFixed(1) + '%');
+  set('cw-front-pct', ((fl + fr) / total * 100).toFixed(1) + '%');
+  set('cw-rear-pct',  ((rl + rr) / total * 100).toFixed(1) + '%');
+  set('cw-left-pct',  ((fl + rl) / total * 100).toFixed(1) + '%');
+  set('cw-right-pct', ((fr + rr) / total * 100).toFixed(1) + '%');
   S.cornerWeights = { fl, fr, rl, rr };
 }
 
@@ -141,6 +189,78 @@ function restoreCornerWeights() {
   if (cw.fl || cw.fr || cw.rl || cw.rr) calcCornerWeights();
 }
 
+// ── Weight distribution ───────────────────────
+function calcWeightDistribution() {
+  const wb = parseFloat(document.getElementById('pt-wheelbase')?.value) || S.wheelbase || 1550;
+  if (wb <= 0) return null;
+  let frontLoad = 0, rearLoad = 0, posCount = 0;
+  S.parts.forEach(p => {
+    if (p.axlePos == null || p.axlePos === '' || isNaN(parseFloat(p.axlePos))) return;
+    const x = parseFloat(p.axlePos);
+    const w = (p.weight || 0) * (p.qty || 1);
+    if (w <= 0) return;
+    frontLoad += w * (wb - x) / wb;
+    rearLoad  += w * x / wb;
+    posCount++;
+  });
+  const total = frontLoad + rearLoad;
+  if (total <= 0 || posCount === 0) return null;
+  return {
+    frontLoad, rearLoad, total,
+    frontPct: frontLoad / total * 100,
+    rearPct:  rearLoad  / total * 100,
+    posCount, totalParts: S.parts.length, wb,
+  };
+}
+
+function renderWeightDistribution() {
+  const panel = document.getElementById('wd-result');
+  if (!panel) return;
+  // Init wheelbase input from state if empty
+  const wbEl = document.getElementById('pt-wheelbase');
+  if (wbEl && !wbEl.value && S.wheelbase) wbEl.value = S.wheelbase;
+  updateWheelbaseMarkers();
+  const res = calcWeightDistribution();
+  if (!res) {
+    panel.innerHTML = `<div class="empty-state" style="padding:20px">
+      <div class="empty-icon">⚖️</div>
+      <p>부품 등록 시 앞차축 기준 위치를 입력하면<br>전후 무게 배분이 자동 계산됩니다</p>
+    </div>`;
+    return;
+  }
+  const fp = res.frontPct.toFixed(1), rp = res.rearPct.toFixed(1);
+  const warn = res.posCount < res.totalParts
+    ? `<div class="wd-warn">⚠ ${res.totalParts - res.posCount}개 부품 위치 미입력 — 계산 제외됨</div>` : '';
+  let statusMsg = '—', statusColor = '#555';
+  if (res.frontPct >= 40 && res.frontPct <= 50)     { statusMsg = '✅ 이상적 전후 배분 (40–50% 전방)'; statusColor = '#00cc66'; }
+  else if (res.frontPct >= 35 && res.frontPct < 40) { statusMsg = '전방 하중 약간 부족'; statusColor = '#ffaa00'; }
+  else if (res.frontPct > 50 && res.frontPct <= 55) { statusMsg = '전방 하중 약간 과다'; statusColor = '#ffaa00'; }
+  else if (res.frontPct < 35)                        { statusMsg = '⚠ 전방 하중 부족 — 언더스티어 경향'; statusColor = '#ff4444'; }
+  else if (res.frontPct > 55)                        { statusMsg = '⚠ 전방 하중 과다 — 오버스티어 경향'; statusColor = '#ff4444'; }
+  panel.innerHTML = `
+    ${warn}
+    <div class="wd-bar-wrap">
+      <div class="wd-bar-front" style="width:${fp}%">${parseFloat(fp) > 15 ? '앞 ' + fp + '%' : ''}</div>
+      <div class="wd-bar-rear">${parseFloat(rp) > 15 ? '뒤 ' + rp + '%' : ''}</div>
+    </div>
+    <div class="wd-stats">
+      <div class="wd-stat-item">
+        <div class="wd-stat-lbl">전방 하중</div>
+        <div class="wd-stat-val" style="color:#0088ff">${fp}%</div>
+        <div style="font-size:11px;color:#555;margin-top:3px">${fmtWeight(Math.round(res.frontLoad))}</div>
+      </div>
+      <div class="wd-stat-item">
+        <div class="wd-stat-lbl">후방 하중</div>
+        <div class="wd-stat-val" style="color:#ee3300">${rp}%</div>
+        <div style="font-size:11px;color:#555;margin-top:3px">${fmtWeight(Math.round(res.rearLoad))}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;text-align:center;padding:6px 0 8px;color:${statusColor}">${statusMsg}</div>
+    <div style="font-size:11px;color:#444;text-align:right">휠베이스 ${res.wb}mm · ${res.posCount}/${res.totalParts}개 부품 반영</div>
+  `;
+}
+
+// ── Category summary ──────────────────────────
 function renderPartsSummary() {
   const container = document.getElementById('parts-cat-summary');
   if (!container) return;
@@ -165,16 +285,12 @@ function renderPartsSummary() {
       return `<div style="background:#1a1a1a;border-radius:8px;padding:14px;border-left:3px solid ${col}">
         <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:#ddd">${cat}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
-          <div>
-            <div style="color:#888;margin-bottom:3px">총 무게</div>
+          <div><div style="color:#888;margin-bottom:3px">총 무게</div>
             <div style="color:#ffaa00;font-weight:700">${fmtWeight(d.weight)}</div>
-            <div style="color:#555;font-size:11px">${wPct}%</div>
-          </div>
-          <div>
-            <div style="color:#888;margin-bottom:3px">총 비용</div>
+            <div style="color:#555;font-size:11px">${wPct}%</div></div>
+          <div><div style="color:#888;margin-bottom:3px">총 비용</div>
             <div style="color:#00cc66;font-weight:700">${d.cost.toLocaleString()} 원</div>
-            <div style="color:#555;font-size:11px">${cPct}%</div>
-          </div>
+            <div style="color:#555;font-size:11px">${cPct}%</div></div>
         </div>
         <div style="color:#666;font-size:11px;margin-top:8px">수량 ${d.qty}개</div>
       </div>`;
@@ -182,6 +298,7 @@ function renderPartsSummary() {
   }</div>`;
 }
 
+// ── Charts ────────────────────────────────────
 function renderPartsCharts() {
   const cats = {};
   S.parts.forEach(p => {
@@ -203,23 +320,19 @@ function renderPartsCharts() {
   const wEl = document.getElementById('partsWeightChart');
   if (wEl) {
     if (partsWeightChart) partsWeightChart.destroy();
-    if (labels.length) {
-      partsWeightChart = new Chart(wEl.getContext('2d'), {
-        type: 'doughnut',
-        data: { labels, datasets: [{ data: weights, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
-        options: chartOpts(true)
-      });
-    }
+    if (labels.length) partsWeightChart = new Chart(wEl.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: weights, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
+      options: chartOpts(true)
+    });
   }
   const cEl = document.getElementById('partsCostChart');
   if (cEl) {
     if (partsCostChart) partsCostChart.destroy();
-    if (labels.length) {
-      partsCostChart = new Chart(cEl.getContext('2d'), {
-        type: 'doughnut',
-        data: { labels, datasets: [{ data: costs, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
-        options: chartOpts(false)
-      });
-    }
+    if (labels.length) partsCostChart = new Chart(cEl.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: costs, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
+      options: chartOpts(false)
+    });
   }
 }

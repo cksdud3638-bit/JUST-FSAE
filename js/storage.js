@@ -27,6 +27,7 @@ const S = {
   budget: { limits: {}, expenses: [] },
   parts: [],
   cornerWeights: { fl: 0, fr: 0, rl: 0, rr: 0 },
+  wheelbase: 1550,
 };
 
 // ═══════════════════════════════════════════════
@@ -94,6 +95,7 @@ async function exportData() {
     setupHistory: S.setupHistory,
     parts: S.parts,
     cornerWeights: S.cornerWeights,
+    wheelbase: S.wheelbase,
   };
   const json = JSON.stringify(data, null, 2);
   const filename = 'JUST_FSAE_저장_' + new Date().toISOString().slice(0, 10) + '.json';
@@ -135,7 +137,8 @@ function handleImport(input) {
       if (data.setupHistory   !== undefined) S.setupHistory   = data.setupHistory;
       if (data.parts          !== undefined) S.parts          = data.parts;
       if (data.cornerWeights  !== undefined) S.cornerWeights  = data.cornerWeights;
-      ['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','cornerWeights'].forEach(k => save(k));
+      if (data.wheelbase      !== undefined) S.wheelbase      = data.wheelbase;
+      ['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','cornerWeights','wheelbase'].forEach(k => save(k));
       buildInspection();
       renderLapTable();
       renderDriverStats();

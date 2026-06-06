@@ -122,7 +122,7 @@ function switchTab(name, btn) {
   if (name === 'feedback') { renderFeedbackCharts(); renderSetupHistory(); populateSetupLinks(); populateTestLogLinks(); }
   if (name === 'testlog')  { renderTestLogs(); }
   if (name === 'budget')   { renderBudget(); }
-  if (name === 'parts')    { renderParts(); }
+  if (name === 'parts')    { renderParts(); updateSliderFill(); updateWheelbaseMarkers(); }
 }
 
 function switchTabByName(name) {
@@ -142,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   buildInspection();
   renderHome();
+  updateSliderFill();
 
   db.ref('just').on('value', function(snapshot) {
     const data = snapshot.val() || {};
@@ -153,6 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.parts)          S.parts          = data.parts;
     if (data.inspectionMeta) S.inspectionMeta = data.inspectionMeta;
     if (data.cornerWeights)  { S.cornerWeights = data.cornerWeights; restoreCornerWeights(); }
+    if (data.wheelbase != null) {
+      S.wheelbase = data.wheelbase;
+      const wbEl = document.getElementById('pt-wheelbase');
+      if (wbEl) wbEl.value = S.wheelbase;
+    }
 
     // Legacy save-time display
     if (data.lastSave) {
