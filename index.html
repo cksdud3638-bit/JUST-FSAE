@@ -558,6 +558,12 @@ textarea.form-control{resize:vertical;min-height:80px}
         <label>메모</label>
         <input type="text" class="form-control" id="lt-note" placeholder="특이사항 (선택)">
       </div>
+      <div class="form-group">
+        <label>테스트 세션 연결 (선택)</label>
+        <select class="form-control" id="lt-session">
+          <option value="">연결 안함</option>
+        </select>
+      </div>
       <button class="btn btn-primary w-full" onclick="addLapTime()">+ 기록 추가</button>
     </div>
 
@@ -591,7 +597,7 @@ textarea.form-control{resize:vertical;min-height:80px}
         <thead>
           <tr>
             <th>#</th><th>드라이버</th><th>날짜</th><th>랩타임</th>
-            <th>날씨</th><th>노면</th><th>메모</th><th></th>
+            <th>날씨</th><th>노면</th><th>세션</th><th>메모</th><th></th>
           </tr>
         </thead>
         <tbody id="lap-tbody"></tbody>
@@ -677,6 +683,25 @@ textarea.form-control{resize:vertical;min-height:80px}
           <div class="card-title" style="margin-bottom:12px"><span class="dot"></span>피트스톱 전략</div>
           <div id="pit-stop-plan"></div>
         </div>
+      </div>
+
+      <div class="card mt-4" style="background:linear-gradient(135deg,rgba(255,170,0,0.06),rgba(255,170,0,0.02));border-color:rgba(255,170,0,0.25)">
+        <div class="card-title"><span class="dot" style="background:#ffaa00"></span>부품 무게 연동 — 예상 차량 중량</div>
+        <div class="grid-3" style="text-align:center;gap:12px">
+          <div style="background:#1a1a1a;border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">등록 부품 중량</div>
+            <div id="fuel-parts-weight" style="font-size:22px;font-weight:800;color:#ffaa00">0 g</div>
+          </div>
+          <div style="background:#1a1a1a;border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">연료 중량 (≈740g/L)</div>
+            <div id="fuel-fuel-weight" style="font-size:22px;font-weight:800;color:#ff6600">0 g</div>
+          </div>
+          <div style="background:#111;border-radius:8px;padding:14px;border:1px solid rgba(255,170,0,0.3)">
+            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">예상 총 차량 중량</div>
+            <div id="fuel-total-weight" style="font-size:22px;font-weight:800;color:#fff">0 kg</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#555;margin-top:10px;text-align:center">* 연료 밀도 0.74 kg/L 기준 · 부품 무게/비용 탭의 등록 데이터 반영</div>
       </div>
 
       <div class="card mt-4">
@@ -809,6 +834,13 @@ textarea.form-control{resize:vertical;min-height:80px}
         <div class="card-title" style="color:#0088ff"><span style="background:#0088ff" class="dot"></span>이전 테스트와 비교</div>
         <div id="log-compare-content"></div>
       </div>
+
+      <div id="log-laps-panel" style="display:none;margin-top:16px">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>이 세션 랩타임</div>
+          <div id="log-laps-content"><div class="empty-state" style="padding:20px"><div class="empty-icon">🏁</div><p>이 세션에 연결된 랩타임이 없습니다</p></div></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -842,34 +874,50 @@ textarea.form-control{resize:vertical;min-height:80px}
           <option value="">없음</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>연결된 테스트 일지 (선택)</label>
+        <select class="form-control" id="fb-testlog-link">
+          <option value="">없음</option>
+        </select>
+      </div>
 
       <div class="divider"></div>
       <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px">항목별 평가 (1~10점)</div>
 
       <div class="rating-row">
-        <div class="rating-label">🔄 핸들링</div>
-        <input type="range" class="rating-slider" id="fb-handling" min="1" max="10" value="5" oninput="updateRating('handling',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
-        <div class="rating-value" id="rv-handling">5</div>
+        <div class="rating-label" style="width:120px;font-size:12px">🔀 코너 진입</div>
+        <input type="range" class="rating-slider" id="fb-cornerEntry" min="1" max="10" value="5" oninput="updateRating('cornerEntry',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-cornerEntry">5</div>
       </div>
       <div class="rating-row">
-        <div class="rating-label">🛑 제동</div>
-        <input type="range" class="rating-slider" id="fb-braking" min="1" max="10" value="5" oninput="updateRating('braking',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
-        <div class="rating-value" id="rv-braking">5</div>
+        <div class="rating-label" style="width:120px;font-size:12px">⚖️ 중립 밸런스</div>
+        <input type="range" class="rating-slider" id="fb-midBalance" min="1" max="10" value="5" oninput="updateRating('midBalance',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-midBalance">5</div>
       </div>
       <div class="rating-row">
-        <div class="rating-label">⚡ 가속</div>
-        <input type="range" class="rating-slider" id="fb-accel" min="1" max="10" value="5" oninput="updateRating('accel',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
-        <div class="rating-value" id="rv-accel">5</div>
+        <div class="rating-label" style="width:120px;font-size:12px">⚡ 탈출 트랙션</div>
+        <input type="range" class="rating-slider" id="fb-exitTraction" min="1" max="10" value="5" oninput="updateRating('exitTraction',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-exitTraction">5</div>
       </div>
       <div class="rating-row">
-        <div class="rating-label">🪑 승차감</div>
-        <input type="range" class="rating-slider" id="fb-comfort" min="1" max="10" value="5" oninput="updateRating('comfort',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
-        <div class="rating-value" id="rv-comfort">5</div>
+        <div class="rating-label" style="width:120px;font-size:12px">🎯 조향 응답성</div>
+        <input type="range" class="rating-slider" id="fb-steeringResponse" min="1" max="10" value="5" oninput="updateRating('steeringResponse',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-steeringResponse">5</div>
       </div>
       <div class="rating-row">
-        <div class="rating-label">🏎 전반적</div>
-        <input type="range" class="rating-slider" id="fb-overall" min="1" max="10" value="5" oninput="updateRating('overall',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
-        <div class="rating-value" id="rv-overall">5</div>
+        <div class="rating-label" style="width:120px;font-size:12px">🛑 브레이크 감각</div>
+        <input type="range" class="rating-slider" id="fb-brakeFeel" min="1" max="10" value="5" oninput="updateRating('brakeFeel',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-brakeFeel">5</div>
+      </div>
+      <div class="rating-row">
+        <div class="rating-label" style="width:120px;font-size:12px">↗ 언더스티어</div>
+        <input type="range" class="rating-slider" id="fb-understeer" min="1" max="10" value="5" oninput="updateRating('understeer',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-understeer">5</div>
+      </div>
+      <div class="rating-row">
+        <div class="rating-label" style="width:120px;font-size:12px">↙ 오버스티어</div>
+        <input type="range" class="rating-slider" id="fb-oversteer" min="1" max="10" value="5" oninput="updateRating('oversteer',this.value)" style="background:linear-gradient(90deg,#ff0000 50%,#222 50%)">
+        <div class="rating-value" id="rv-oversteer">5</div>
       </div>
 
       <div class="form-group mt-4">
@@ -1025,6 +1073,10 @@ textarea.form-control{resize:vertical;min-height:80px}
       <div class="form-group"><label>품목</label><input type="text" class="form-control" id="exp-item" placeholder="품목명"></div>
       <div class="form-group"><label>금액 (원)</label><input type="number" class="form-control" id="exp-amount" placeholder="0"></div>
       <div class="form-group"><label>담당자</label><input type="text" class="form-control" id="exp-person" placeholder="담당자"></div>
+      <div class="form-group">
+        <label>무게 변화 (g, 선택) — 교체 후 +증가 / -감소</label>
+        <input type="number" class="form-control" id="exp-weight-delta" placeholder="예: -120 또는 +85">
+      </div>
       <button class="btn btn-primary w-full" id="btn-add-expense">지출 추가</button>
     </div>
     <!-- Expense table -->
@@ -1032,10 +1084,11 @@ textarea.form-control{resize:vertical;min-height:80px}
       <div class="card-title"><span class="dot"></span>지출 내역</div>
       <div style="overflow-x:auto">
         <table class="expense-table">
-          <thead><tr><th>날짜</th><th>파트</th><th>품목</th><th>금액</th><th>담당자</th><th></th></tr></thead>
+          <thead><tr><th>날짜</th><th>파트</th><th>품목</th><th>금액</th><th>담당자</th><th>무게변화</th><th></th></tr></thead>
           <tbody id="expense-tbody"></tbody>
         </table>
         <div class="empty-state" id="expense-empty"><div class="empty-icon">💸</div><p>지출 내역이 없습니다</p></div>
+        <div id="budget-weight-delta-summary" style="display:none;font-size:12px;font-weight:600;text-align:right;padding:8px 4px;border-top:1px solid #1e1e1e;margin-top:8px"></div>
       </div>
     </div>
   </div>
@@ -1279,9 +1332,9 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   btn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
   if (name === 'home')     { renderHome(); }
-  if (name === 'laptime')  { renderLapCharts(); }
+  if (name === 'laptime')  { renderLapCharts(); populateTestSessions(); }
   if (name === 'fuel')     { calcFuel(); }
-  if (name === 'feedback') { renderFeedbackCharts(); renderSetupHistory(); populateSetupLinks(); }
+  if (name === 'feedback') { renderFeedbackCharts(); renderSetupHistory(); populateSetupLinks(); populateTestLogLinks(); }
   if (name === 'testlog')  { renderTestLogs(); }
   if (name === 'budget')   { renderBudget(); }
   if (name === 'parts')    { renderParts(); }
@@ -1716,11 +1769,13 @@ function addExpense() {
   const item   = document.getElementById('exp-item')?.value.trim();
   const amount = parseInt(document.getElementById('exp-amount')?.value);
   const person = document.getElementById('exp-person')?.value.trim();
+  const wdRaw  = document.getElementById('exp-weight-delta')?.value;
+  const weightDelta = wdRaw !== '' && wdRaw != null ? parseInt(wdRaw) : null;
   if (!date || !part || !item || !amount || amount <= 0) { alert('모든 항목을 입력하세요'); return; }
   if (!S.budget.expenses) S.budget.expenses = [];
-  S.budget.expenses.push({ date, part, item, amount, person: person || '-' });
+  S.budget.expenses.push({ date, part, item, amount, person: person || '-', weightDelta });
   S.budget.expenses.sort((a, b) => b.date.localeCompare(a.date));
-  ['exp-item','exp-amount','exp-person'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['exp-item','exp-amount','exp-person','exp-weight-delta'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   save('budget');
 }
 
@@ -1766,16 +1821,30 @@ function renderBudget() {
   const tbody = document.getElementById('expense-tbody');
   const empty = document.getElementById('expense-empty');
   if (tbody) {
-    tbody.innerHTML = expenses.length === 0 ? '' : expenses.map((e,i) => `
-      <tr>
+    const totalWeightDelta = expenses.reduce((a, e) => a + (e.weightDelta || 0), 0);
+    tbody.innerHTML = expenses.length === 0 ? '' : expenses.map((e, i) => {
+      const wd = e.weightDelta != null ? e.weightDelta : null;
+      const wdColor = wd == null ? '#555' : wd > 0 ? '#ff4444' : '#00cc66';
+      const wdText  = wd == null ? '-' : (wd > 0 ? '+' : '') + wd.toLocaleString() + 'g';
+      return `<tr>
         <td>${e.date}</td>
         <td><span style="background:#222;padding:2px 8px;border-radius:4px;font-size:11px">${e.part}</span></td>
         <td>${e.item}</td>
         <td style="font-weight:600;color:var(--red)">₩${e.amount.toLocaleString()}</td>
         <td>${e.person}</td>
+        <td style="font-weight:600;color:${wdColor};font-size:12px">${wdText}</td>
         <td><button onclick="deleteExpense(${i})" style="background:none;border:none;color:#555;cursor:pointer;touch-action:manipulation">✕</button></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     if (empty) empty.style.display = expenses.length === 0 ? 'block' : 'none';
+    // 무게 변화 합산 배지
+    const wdSummaryEl = document.getElementById('budget-weight-delta-summary');
+    if (wdSummaryEl) {
+      const hasAny = expenses.some(e => e.weightDelta != null);
+      wdSummaryEl.style.display = hasAny ? '' : 'none';
+      wdSummaryEl.textContent = '지출 항목 누적 무게 변화: ' + (totalWeightDelta > 0 ? '+' : '') + totalWeightDelta.toLocaleString() + ' g';
+      wdSummaryEl.style.color = totalWeightDelta > 0 ? '#ff4444' : totalWeightDelta < 0 ? '#00cc66' : '#888';
+    }
   }
 
   const parts = Object.keys(limits);
@@ -2029,12 +2098,13 @@ function addLapTime() {
   const weather = v('lt-weather');
   const track = v('lt-track');
   const note = v('lt-note').trim();
+  const sessionId = v('lt-session') || '';
 
   if (!driver || !date || !time) { alert('드라이버, 날짜, 랩타임을 입력하세요.'); return; }
   const sec = parseTime(time);
   if (sec === null) { alert('랩타임 형식: 1:23.456'); return; }
 
-  S.lapTimes.push({ id: Date.now(), driver, date, time, sec, weather, track, note });
+  S.lapTimes.push({ id: Date.now(), driver, date, time, sec, weather, track, note, sessionId });
   save('lapTimes');
   renderLapTable();
   renderDriverStats();
@@ -2042,6 +2112,14 @@ function addLapTime() {
   document.getElementById('lt-driver').value='';
   document.getElementById('lt-time').value='';
   document.getElementById('lt-note').value='';
+}
+
+function populateTestSessions() {
+  const sel = document.getElementById('lt-session');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">연결 안함</option>' + (S.testLogs || []).map(l =>
+    `<option value="${l.id}">${l.date} — ${l.result ? l.result.slice(0,30) : '(결과 미입력)'}</option>`
+  ).join('');
 }
 
 function deleteLap(id) {
@@ -2055,24 +2133,28 @@ function deleteLap(id) {
 function renderLapTable() {
   const tbody = document.getElementById('lap-tbody');
   if (!S.lapTimes.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#555">기록 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#555">기록 없음</td></tr>';
     return;
   }
-  // find best per driver
   const bests = {};
   S.lapTimes.forEach(l => {
     if (!bests[l.driver] || l.sec < bests[l.driver]) bests[l.driver] = l.sec;
   });
-  tbody.innerHTML = S.lapTimes.map((l,i) => {
+  tbody.innerHTML = S.lapTimes.map((l, i) => {
     const isBest = l.sec === bests[l.driver];
+    const sess = l.sessionId ? S.testLogs.find(t => String(t.id) === String(l.sessionId)) : null;
+    const sessLabel = sess
+      ? `<span style="background:#1e1e1e;border-radius:4px;padding:2px 6px;font-size:10px;color:#0088ff;border:1px solid #001133">${sess.date}</span>`
+      : '<span style="color:#333;font-size:11px">-</span>';
     return `<tr>
-      <td style="color:#555">${i+1}</td>
+      <td style="color:#555">${i + 1}</td>
       <td style="font-weight:600;color:#ddd">${l.driver}</td>
       <td style="color:#888">${l.date}</td>
-      <td class="${isBest?'best-time':''}">${l.time} ${isBest?'<span class="lap-badge badge-best">BEST</span>':''}</td>
+      <td class="${isBest ? 'best-time' : ''}">${l.time} ${isBest ? '<span class="lap-badge badge-best">BEST</span>' : ''}</td>
       <td>${l.weather}</td>
       <td>${l.track}</td>
-      <td style="color:#666;font-size:12px">${l.note||'-'}</td>
+      <td>${sessLabel}</td>
+      <td style="color:#666;font-size:12px">${l.note || '-'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="deleteLap(${l.id})" style="color:#ff4444;border-color:#330000">삭제</button></td>
     </tr>`;
   }).join('');
@@ -2233,6 +2315,15 @@ function calcFuel() {
     ).join('') || '<div class="pit-stop-item"><div class="lap">-</div><div class="details">계산 오류<span>수치를 확인하세요</span></div></div>';
   }
 
+  // 부품 무게 연동 — 예상 차량 중량
+  const partsWeight = S.parts.reduce((a, p) => a + (p.weight || 0) * (p.qty || 1), 0);
+  const fuelWeight  = Math.round(totalFuel * 740);
+  const totalVehWeight = partsWeight + fuelWeight;
+  const setFuelEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  setFuelEl('fuel-parts-weight', partsWeight.toLocaleString() + ' g');
+  setFuelEl('fuel-fuel-weight',  fuelWeight.toLocaleString() + ' g');
+  setFuelEl('fuel-total-weight', (totalVehWeight / 1000).toFixed(2) + ' kg');
+
   // Fuel consumption chart
   renderFuelChart(lapsTotal, fuelPerLap, tankCap, pitFuel, totalFuel);
 }
@@ -2358,12 +2449,13 @@ function renderTestLogs() {
         ${log.setup.tiretype?`<span class="log-tag">${log.setup.tiretype}</span>`:''}
         ${log.issues?'<span class="log-tag" style="color:#ff4444;border-color:#330000">⚠ 이슈</span>':''}
       </div>
-      <div style="display:flex;gap:6px;margin-top:10px">
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editLog(${log.id})">편집</button>
         <button class="btn btn-ghost btn-sm" style="color:#ff4444" onclick="event.stopPropagation();deleteLog(${log.id})">삭제</button>
         ${S.testLogs.indexOf(S.testLogs.find(l=>l.id===log.id)) < S.testLogs.length-1 ?
           `<button class="btn btn-ghost btn-sm" style="color:#0088ff;border-color:#001133" onclick="event.stopPropagation();compareLogs(${log.id})">이전 비교</button>` : ''
         }
+        <button class="btn btn-ghost btn-sm" style="color:#00cc66;border-color:#003322" onclick="event.stopPropagation();showSessionLaps(${log.id})">🏁 랩타임</button>
       </div>
     </div>
   `).join('');
@@ -2436,6 +2528,30 @@ function compareLogs(id) {
 
 function filterLogs() { renderTestLogs(); }
 
+function showSessionLaps(logId) {
+  const panel = document.getElementById('log-laps-panel');
+  const content = document.getElementById('log-laps-content');
+  if (!panel || !content) return;
+  const laps = S.lapTimes.filter(l => String(l.sessionId) === String(logId));
+  panel.style.display = 'block';
+  if (!laps.length) {
+    content.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">🏁</div><p>이 세션에 연결된 랩타임이 없습니다<br><small style="color:#555">랩타임 탭에서 세션을 선택해 추가하세요</small></p></div>';
+    return;
+  }
+  const bests = {};
+  laps.forEach(l => { if (!bests[l.driver] || l.sec < bests[l.driver]) bests[l.driver] = l.sec; });
+  content.innerHTML = `<table class="lap-table" style="width:100%"><thead><tr>
+    <th>#</th><th>드라이버</th><th>랩타임</th><th>날씨</th><th>노면</th></tr></thead><tbody>` +
+    laps.map((l, i) => {
+      const isBest = l.sec === bests[l.driver];
+      return `<tr>
+        <td style="color:#555">${i+1}</td>
+        <td style="font-weight:600;color:#ddd">${l.driver}</td>
+        <td class="${isBest ? 'best-time' : ''}">${l.time}${isBest ? ' <span class="lap-badge badge-best">BEST</span>' : ''}</td>
+        <td>${l.weather}</td><td>${l.track}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
 // ═══════════════════════════════════════════════════════
 // TAB 5: FEEDBACK + SETUP HISTORY
 // ═══════════════════════════════════════════════════════
@@ -2452,15 +2568,23 @@ function saveFeedback() {
   const driver = v('fb-driver').trim();
   const date = v('fb-date');
   if (!driver || !date) { alert('드라이버와 날짜를 입력하세요.'); return; }
+  const vals = {
+    cornerEntry:      parseInt(v('fb-cornerEntry'))      || 5,
+    midBalance:       parseInt(v('fb-midBalance'))       || 5,
+    exitTraction:     parseInt(v('fb-exitTraction'))     || 5,
+    steeringResponse: parseInt(v('fb-steeringResponse')) || 5,
+    brakeFeel:        parseInt(v('fb-brakeFeel'))        || 5,
+    understeer:       parseInt(v('fb-understeer'))       || 5,
+    oversteer:        parseInt(v('fb-oversteer'))        || 5,
+  };
+  const overall = Math.round(Object.values(vals).reduce((a,b)=>a+b,0) / 7);
   const fb = {
     id: Date.now(),
     driver, date,
     setupLink: v('fb-setup-link'),
-    handling: parseInt(v('fb-handling')),
-    braking: parseInt(v('fb-braking')),
-    accel: parseInt(v('fb-accel')),
-    comfort: parseInt(v('fb-comfort')),
-    overall: parseInt(v('fb-overall')),
+    testLogLink: v('fb-testlog-link') || '',
+    ...vals,
+    overall,
     comment: v('fb-comment'),
   };
   S.feedbacks.unshift(fb);
@@ -2522,8 +2646,17 @@ function deleteSetup(id) {
 
 function populateSetupLinks() {
   const sel = document.getElementById('fb-setup-link');
+  if (!sel) return;
   sel.innerHTML = '<option value="">없음</option>' + S.setupHistory.map(sh =>
     `<option value="${sh.id}">${sh.date} - ${sh.what}</option>`
+  ).join('');
+}
+
+function populateTestLogLinks() {
+  const sel = document.getElementById('fb-testlog-link');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">없음</option>' + (S.testLogs || []).map(l =>
+    `<option value="${l.id}">${l.date} — ${l.result ? l.result.slice(0,30) : '(결과 미입력)'}</option>`
   ).join('');
 }
 
@@ -2541,13 +2674,16 @@ function renderRadar() {
   const recent = S.feedbacks.slice(0,3);
   const colors = ['#ff0000','#00cc66','#0088ff'];
 
+  const fbData = fb => fb.cornerEntry != null
+    ? [fb.cornerEntry, fb.midBalance, fb.exitTraction, fb.steeringResponse, fb.brakeFeel, fb.understeer, fb.oversteer]
+    : [fb.handling||5, fb.braking||5, fb.accel||5, fb.comfort||5, fb.overall||5, 5, 5];
   radarChart = new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: ['핸들링','제동','가속','승차감','종합'],
+      labels: ['코너 진입','중립 밸런스','탈출 트랙션','조향 응답성','브레이크 감각','언더스티어','오버스티어'],
       datasets: recent.map((fb,i) => ({
         label: `${fb.driver} (${fb.date})`,
-        data: [fb.handling, fb.braking, fb.accel, fb.comfort, fb.overall],
+        data: fbData(fb),
         borderColor: colors[i%colors.length],
         backgroundColor: colors[i%colors.length]+'22',
         pointBackgroundColor: colors[i%colors.length],
@@ -2575,7 +2711,12 @@ function renderFbTrend() {
   if (S.feedbacks.length < 2) return;
 
   const sorted = [...S.feedbacks].sort((a,b)=>a.date.localeCompare(b.date));
-  const fields = [{key:'handling',label:'핸들링',color:'#ff0000'},{key:'braking',label:'제동',color:'#0088ff'},{key:'accel',label:'가속',color:'#00cc66'},{key:'overall',label:'종합',color:'#ffaa00'}];
+  const fields = [
+    {key:'cornerEntry',label:'코너 진입',color:'#ff0000'},
+    {key:'exitTraction',label:'탈출 트랙션',color:'#00cc66'},
+    {key:'steeringResponse',label:'조향 응답',color:'#0088ff'},
+    {key:'overall',label:'종합',color:'#ffaa00'},
+  ];
 
   fbTrendChart = new Chart(ctx, {
     type: 'line',
@@ -2615,9 +2756,12 @@ function renderBeforeAfter() {
   const ctx = document.getElementById('beforeAfterChart').getContext('2d');
   if (baChart) baChart.destroy();
 
-  const labels = ['핸들링','제동','가속','승차감','종합'];
-  const beforeData = [before.handling, before.braking, before.accel, before.comfort, before.overall];
-  const afterData = [after.handling, after.braking, after.accel, after.comfort, after.overall];
+  const labels = ['코너 진입','중립 밸런스','탈출 트랙션','조향 응답성','브레이크 감각','언더스티어','오버스티어'];
+  const toArr = fb => fb.cornerEntry != null
+    ? [fb.cornerEntry,fb.midBalance,fb.exitTraction,fb.steeringResponse,fb.brakeFeel,fb.understeer,fb.oversteer]
+    : [fb.handling||5,fb.braking||5,fb.accel||5,fb.comfort||5,fb.overall||5,5,5];
+  const beforeData = toArr(before);
+  const afterData  = toArr(after);
 
   baChart = new Chart(ctx, {
     type: 'bar',
@@ -2955,6 +3099,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTestLogs();
     renderSetupHistory();
     populateSetupLinks();
+    populateTestSessions();
+    populateTestLogLinks();
     calcFuel();
     renderBudget();
     renderParts();
@@ -2979,8 +3125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHome();
   });
 
-  // Init rating sliders
-  ['handling','braking','accel','comfort','overall'].forEach(k => updateRating(k, 5));
+  // Init rating sliders (새 7개 항목)
+  ['cornerEntry','midBalance','exitTraction','steeringResponse','brakeFeel','understeer','oversteer'].forEach(k => updateRating(k, 5));
 
   // Tab button event listeners (replaces onclick)
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
