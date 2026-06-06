@@ -348,6 +348,7 @@ textarea.form-control{resize:vertical;min-height:80px}
   <button class="tab-btn" data-tab="testlog"><span class="tab-number">4</span>테스트 일지</button>
   <button class="tab-btn" data-tab="feedback"><span class="tab-number">5</span>드라이버 피드백</button>
   <button class="tab-btn" data-tab="budget"><span class="tab-number">6</span>예산 관리</button>
+  <button class="tab-btn" data-tab="parts"><span class="tab-number">7</span>부품 무게/비용</button>
 </nav>
 
 <!-- MAIN CONTENT -->
@@ -963,6 +964,130 @@ textarea.form-control{resize:vertical;min-height:80px}
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════
+     TAB 7: PARTS WEIGHT/COST CALCULATOR
+═══════════════════════════════════════════════ -->
+<div id="tab-parts" class="tab-pane">
+  <div class="section-header">
+    <div>
+      <div class="section-title">부품 무게/비용 계산기</div>
+      <div class="section-sub">카테고리별 부품 무게 및 비용 통합 관리</div>
+    </div>
+  </div>
+
+  <!-- 전체 요약 stat cards -->
+  <div class="grid-4 mb-6">
+    <div class="stat-card red">
+      <div class="stat-label">총 차량 무게</div>
+      <div class="stat-value" id="pt-total-weight">0</div>
+      <div class="stat-sub">g</div>
+      <div class="stat-bar"><div class="stat-bar-fill" id="pt-weight-bar" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-label">총 비용</div>
+      <div class="stat-value" id="pt-total-cost">0</div>
+      <div class="stat-sub">원</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">등록 부품 수</div>
+      <div class="stat-value" id="pt-total-count">0</div>
+      <div class="stat-sub">개 (수량 합산)</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">카테고리 수</div>
+      <div class="stat-value" id="pt-cat-count">0</div>
+      <div class="stat-sub">개</div>
+    </div>
+  </div>
+
+  <div class="grid-2 mb-6">
+    <!-- 입력 폼 -->
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>부품 추가</div>
+      <div class="form-group">
+        <label>부품명</label>
+        <input type="text" class="form-control" id="pt-name" placeholder="예: 프론트 서스펜션 암">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>카테고리</label>
+          <select class="form-control" id="pt-cat">
+            <option>섀시</option>
+            <option>서스펜션</option>
+            <option>파워트레인</option>
+            <option>브레이크</option>
+            <option>조향</option>
+            <option>바디/공력</option>
+            <option>전장</option>
+            <option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>수량</label>
+          <input type="number" class="form-control" id="pt-qty" placeholder="1" min="1" value="1">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>무게 (g / 개)</label>
+          <input type="number" class="form-control" id="pt-weight" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>비용 (원 / 개)</label>
+          <input type="number" class="form-control" id="pt-cost" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>메모</label>
+        <input type="text" class="form-control" id="pt-note" placeholder="재질, 제조사 등 (선택)">
+      </div>
+      <button class="btn btn-primary w-full" onclick="addPart()">+ 부품 추가</button>
+    </div>
+
+    <!-- 파이 차트 2개 -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card" style="flex:1">
+        <div class="card-title"><span class="dot"></span>카테고리별 무게 비율</div>
+        <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center">
+          <canvas id="partsWeightChart" style="max-height:200px"></canvas>
+        </div>
+      </div>
+      <div class="card" style="flex:1">
+        <div class="card-title"><span class="dot"></span>카테고리별 비용 비율</div>
+        <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center">
+          <canvas id="partsCostChart" style="max-height:200px"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 카테고리별 합산 -->
+  <div class="card mb-6">
+    <div class="card-title"><span class="dot"></span>카테고리별 합산</div>
+    <div id="parts-cat-summary">
+      <div class="empty-state"><div class="empty-icon">⚙️</div><p>부품을 추가하면 카테고리 합산이 표시됩니다</p></div>
+    </div>
+  </div>
+
+  <!-- 전체 부품 목록 -->
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>전체 부품 목록</div>
+    <div style="overflow-x:auto">
+      <table class="expense-table">
+        <thead>
+          <tr>
+            <th>#</th><th>부품명</th><th>카테고리</th>
+            <th>무게(g/개)</th><th>수량</th><th>총 무게(g)</th>
+            <th>비용(원/개)</th><th>총 비용(원)</th><th>메모</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="parts-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="parts-empty"><div class="empty-icon">🔩</div><p>등록된 부품이 없습니다</p></div>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <script>
@@ -987,6 +1112,7 @@ const S = {
   feedbacks: [],
   setupHistory: [],
   budget: { limits: {}, expenses: [] },
+  parts: [],
 };
 function save(key) {
   db.ref('just/' + key).set(S[key]);
@@ -1006,6 +1132,7 @@ async function exportData() {
     testLogs: S.testLogs,
     feedbacks: S.feedbacks,
     setupHistory: S.setupHistory,
+    parts: S.parts,
   };
   const json = JSON.stringify(data, null, 2);
   const filename = 'JUST_FSAE_저장_' + new Date().toISOString().slice(0, 10) + '.json';
@@ -1044,10 +1171,12 @@ function handleImport(input) {
       if (data.testLogs     !== undefined) S.testLogs     = data.testLogs;
       if (data.feedbacks    !== undefined) S.feedbacks    = data.feedbacks;
       if (data.setupHistory !== undefined) S.setupHistory = data.setupHistory;
-      ['inspection','lapTimes','testLogs','feedbacks','setupHistory'].forEach(k => save(k));
+      if (data.parts        !== undefined) S.parts        = data.parts;
+      ['inspection','lapTimes','testLogs','feedbacks','setupHistory','parts'].forEach(k => save(k));
       buildInspection();
       renderLapTable();
       renderDriverStats();
+      renderParts();
       renderTestLogs();
       renderSetupHistory();
       populateSetupLinks();
@@ -1075,6 +1204,7 @@ function switchTab(name, btn) {
   if (name === 'feedback') { renderFeedbackCharts(); renderSetupHistory(); populateSetupLinks(); }
   if (name === 'testlog') { renderTestLogs(); }
   if (name === 'budget') { renderBudget(); }
+  if (name === 'parts') { renderParts(); }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2439,6 +2569,167 @@ function setWidth(id, pct) { const el=document.getElementById(id); if(el) el.sty
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// TAB 7: PARTS WEIGHT/COST CALCULATOR
+// ═══════════════════════════════════════════════════════
+let partsWeightChart = null, partsCostChart = null;
+const PARTS_COLORS = ['#ff0000','#00cc66','#0088ff','#ffaa00','#cc66ff','#ff6688','#00cccc','#ff8800'];
+
+function addPart() {
+  const name = v('pt-name').trim();
+  const cat  = v('pt-cat');
+  const weight = parseFloat(v('pt-weight')) || 0;
+  const cost   = parseFloat(v('pt-cost'))   || 0;
+  const qty    = Math.max(1, parseInt(v('pt-qty')) || 1);
+  const note   = v('pt-note').trim();
+  if (!name) { alert('부품명을 입력하세요.'); return; }
+  S.parts.push({ id: Date.now(), name, cat, weight, cost, qty, note });
+  save('parts');
+  renderParts();
+  document.getElementById('pt-name').value   = '';
+  document.getElementById('pt-weight').value = '';
+  document.getElementById('pt-cost').value   = '';
+  document.getElementById('pt-qty').value    = '1';
+  document.getElementById('pt-note').value   = '';
+}
+
+function deletePart(id) {
+  S.parts = S.parts.filter(p => p.id !== id);
+  save('parts');
+  renderParts();
+}
+
+function renderParts() {
+  renderPartsTable();
+  renderPartsSummary();
+  renderPartsCharts();
+}
+
+function renderPartsTable() {
+  const tbody  = document.getElementById('parts-tbody');
+  const empty  = document.getElementById('parts-empty');
+  if (!tbody) return;
+  if (!S.parts.length) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = '';
+    updatePartsTotals(0, 0, 0);
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  let totalWeight = 0, totalQty = 0;
+  let totalCost   = 0;
+  tbody.innerHTML = S.parts.map((p, i) => {
+    const tw = p.weight * p.qty;
+    const tc = p.cost   * p.qty;
+    totalWeight += tw; totalCost += tc; totalQty += p.qty;
+    return `<tr>
+      <td style="color:#555">${i + 1}</td>
+      <td style="font-weight:600;color:#ddd">${p.name}</td>
+      <td><span style="background:#1e1e1e;border-radius:4px;padding:2px 8px;font-size:11px;color:#aaa">${p.cat}</span></td>
+      <td style="color:#ccc">${p.weight.toLocaleString()}</td>
+      <td style="color:#ccc">${p.qty}</td>
+      <td style="color:#ffaa00;font-weight:600">${tw.toLocaleString()}</td>
+      <td style="color:#ccc">${p.cost.toLocaleString()}</td>
+      <td style="color:#00cc66;font-weight:600">${tc.toLocaleString()}</td>
+      <td style="color:#666;font-size:12px">${p.note || '-'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="deletePart(${p.id})" style="color:#ff4444;border-color:#330000">삭제</button></td>
+    </tr>`;
+  }).join('');
+  const cats = [...new Set(S.parts.map(p => p.cat))].length;
+  updatePartsTotals(totalWeight, totalCost, cats, totalQty);
+}
+
+function updatePartsTotals(w, c, cats, qty) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('pt-total-weight', w.toLocaleString());
+  set('pt-total-cost',   c.toLocaleString());
+  set('pt-total-count',  (qty || 0));
+  set('pt-cat-count',    cats);
+}
+
+function renderPartsSummary() {
+  const container = document.getElementById('parts-cat-summary');
+  if (!container) return;
+  if (!S.parts.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚙️</div><p>부품을 추가하면 카테고리 합산이 표시됩니다</p></div>';
+    return;
+  }
+  const cats = {};
+  S.parts.forEach(p => {
+    if (!cats[p.cat]) cats[p.cat] = { weight: 0, cost: 0, qty: 0 };
+    cats[p.cat].weight += p.weight * p.qty;
+    cats[p.cat].cost   += p.cost   * p.qty;
+    cats[p.cat].qty    += p.qty;
+  });
+  const totalWeight = Object.values(cats).reduce((a, c) => a + c.weight, 0);
+  const totalCost   = Object.values(cats).reduce((a, c) => a + c.cost,   0);
+  container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">${
+    Object.entries(cats).map(([cat, d], i) => {
+      const wPct = totalWeight > 0 ? (d.weight / totalWeight * 100).toFixed(1) : '0.0';
+      const cPct = totalCost   > 0 ? (d.cost   / totalCost   * 100).toFixed(1) : '0.0';
+      const col  = PARTS_COLORS[i % PARTS_COLORS.length];
+      return `<div style="background:#1a1a1a;border-radius:8px;padding:14px;border-left:3px solid ${col}">
+        <div style="font-weight:700;font-size:14px;margin-bottom:10px;color:#ddd">${cat}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+          <div>
+            <div style="color:#888;margin-bottom:3px">총 무게</div>
+            <div style="color:#ffaa00;font-weight:700">${d.weight.toLocaleString()} g</div>
+            <div style="color:#555;font-size:11px">${wPct}%</div>
+          </div>
+          <div>
+            <div style="color:#888;margin-bottom:3px">총 비용</div>
+            <div style="color:#00cc66;font-weight:700">${d.cost.toLocaleString()} 원</div>
+            <div style="color:#555;font-size:11px">${cPct}%</div>
+          </div>
+        </div>
+        <div style="color:#666;font-size:11px;margin-top:8px">수량 ${d.qty}개</div>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+function renderPartsCharts() {
+  const cats = {};
+  S.parts.forEach(p => {
+    if (!cats[p.cat]) cats[p.cat] = { weight: 0, cost: 0 };
+    cats[p.cat].weight += p.weight * p.qty;
+    cats[p.cat].cost   += p.cost   * p.qty;
+  });
+  const labels  = Object.keys(cats);
+  const weights = labels.map(l => cats[l].weight);
+  const costs   = labels.map(l => cats[l].cost);
+  const colors  = labels.map((_, i) => PARTS_COLORS[i % PARTS_COLORS.length]);
+  const chartOpts = (unit) => ({
+    responsive: true,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#888', font: { size: 11 }, boxWidth: 12, padding: 8 } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()} ${unit}` } }
+    }
+  });
+  const wEl = document.getElementById('partsWeightChart');
+  if (wEl) {
+    if (partsWeightChart) partsWeightChart.destroy();
+    if (labels.length) {
+      partsWeightChart = new Chart(wEl.getContext('2d'), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: weights, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
+        options: chartOpts('g')
+      });
+    }
+  }
+  const cEl = document.getElementById('partsCostChart');
+  if (cEl) {
+    if (partsCostChart) partsCostChart.destroy();
+    if (labels.length) {
+      partsCostChart = new Chart(cEl.getContext('2d'), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: costs, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
+        options: chartOpts('원')
+      });
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Set today's date on date inputs
   const today = new Date().toISOString().slice(0,10);
@@ -2458,6 +2749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.feedbacks)    S.feedbacks    = data.feedbacks;
     if (data.setupHistory) S.setupHistory = data.setupHistory;
     if (data.budget)       S.budget       = data.budget;
+    if (data.parts)        S.parts        = data.parts;
     if (data.lastSave) { const el = document.getElementById('save-time'); if (el) el.textContent = '마지막 저장: ' + data.lastSave; }
     if (data.compDate != null) {
       const el = document.getElementById('comp-date');
@@ -2470,6 +2762,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateSetupLinks();
     calcFuel();
     renderBudget();
+    renderParts();
   });
 
   // 체크리스트 실시간 동기화 (팀원 전체 공유)
