@@ -2,6 +2,7 @@
 // TAB 7: PARTS WEIGHT/COST CALCULATOR
 // ═══════════════════════════════════════════════
 let partsWeightChart = null, partsCostChart = null;
+let editPartId = null;
 const PARTS_COLORS = ['#ff0000','#00cc66','#0088ff','#ffaa00','#cc66ff','#ff6688','#00cccc','#ff8800'];
 const POS_SLIDER_MIN = -600;
 const POS_SLIDER_MAX = 2200;
@@ -103,6 +104,41 @@ function deletePart(id) {
   renderParts();
 }
 
+function editPart(id) {
+  editPartId = id;
+  renderPartsTable();
+}
+
+function cancelEditPart() {
+  editPartId = null;
+  renderPartsTable();
+}
+
+function saveEditPart(id) {
+  const idx = S.parts.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  const name = (document.getElementById('ep-name-' + id)?.value || '').trim();
+  if (!name) { alert('부품명을 입력하세요.'); return; }
+  const axlePosRaw = document.getElementById('ep-axlepos-' + id)?.value;
+  S.parts[idx] = {
+    ...S.parts[idx],
+    name,
+    cat:       document.getElementById('ep-cat-'    + id)?.value || S.parts[idx].cat,
+    valueType: document.getElementById('ep-vtype-'  + id)?.value || '측정',
+    installed: document.getElementById('ep-inst-'   + id)?.checked || false,
+    weight:    parseFloat(document.getElementById('ep-weight-' + id)?.value) || 0,
+    qty:       Math.max(1, parseInt(document.getElementById('ep-qty-'    + id)?.value) || 1),
+    cost:      parseFloat(document.getElementById('ep-cost-'  + id)?.value) || 0,
+    note:      (document.getElementById('ep-note-'  + id)?.value || '').trim(),
+    axlePos:   (axlePosRaw !== '' && axlePosRaw != null && !isNaN(parseFloat(axlePosRaw)))
+               ? parseFloat(axlePosRaw) : null,
+    posType:   document.getElementById('ep-postype-' + id)?.value || '실측',
+  };
+  save('parts');
+  editPartId = null;
+  renderParts();
+}
+
 function renderParts() {
   renderPartsTable();
   renderPartsSummary();
@@ -123,17 +159,80 @@ function renderPartsTable() {
   }
   if (empty) empty.style.display = 'none';
   let totalWeight = 0, totalQty = 0, totalCost = 0;
+  const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   tbody.innerHTML = S.parts.map((p, i) => {
     const tw = p.weight * p.qty;
     const tc = p.cost   * p.qty;
     totalWeight += tw; totalCost += tc; totalQty += p.qty;
+
+    if (editPartId === p.id) {
+      const catOpts = PART_CATEGORIES.map(c => `<option value="${c}"${p.cat===c?' selected':''}>${c}</option>`).join('');
+      const vtOpts  = ['측정','카탈로그','추정'].map(v => `<option value="${v}"${(p.valueType||'측정')===v?' selected':''}>${v}</option>`).join('');
+      const ptOpts  = ['실측','추정','기준점'].map(v => `<option value="${v}"${(p.posType||'실측')===v?' selected':''}>${v}</option>`).join('');
+      return `<tr class="parts-edit-row">
+        <td colspan="13">
+          <div class="parts-edit-card">
+            <div class="parts-edit-grid">
+              <div class="parts-edit-field parts-edit-wide">
+                <label>부품명</label>
+                <input type="text" id="ep-name-${p.id}" value="${esc(p.name)}" class="parts-edit-input" autofocus>
+              </div>
+              <div class="parts-edit-field">
+                <label>카테고리</label>
+                <select id="ep-cat-${p.id}" class="parts-edit-input">${catOpts}</select>
+              </div>
+              <div class="parts-edit-field">
+                <label>유형</label>
+                <select id="ep-vtype-${p.id}" class="parts-edit-input">${vtOpts}</select>
+              </div>
+              <div class="parts-edit-field parts-edit-narrow">
+                <label>설치</label>
+                <label class="parts-edit-check">
+                  <input type="checkbox" id="ep-inst-${p.id}"${p.installed?' checked':''}>
+                  <span>설치됨</span>
+                </label>
+              </div>
+              <div class="parts-edit-field">
+                <label>무게 (g)</label>
+                <input type="number" id="ep-weight-${p.id}" value="${p.weight}" min="0" class="parts-edit-input">
+              </div>
+              <div class="parts-edit-field parts-edit-narrow">
+                <label>수량</label>
+                <input type="number" id="ep-qty-${p.id}" value="${p.qty}" min="1" class="parts-edit-input">
+              </div>
+              <div class="parts-edit-field">
+                <label>비용 (원/개)</label>
+                <input type="number" id="ep-cost-${p.id}" value="${p.cost}" min="0" class="parts-edit-input">
+              </div>
+              <div class="parts-edit-field">
+                <label>위치 (mm, 앞차축 기준)</label>
+                <input type="number" id="ep-axlepos-${p.id}" value="${p.axlePos ?? ''}" step="10" placeholder="미입력 시 계산 제외" class="parts-edit-input">
+              </div>
+              <div class="parts-edit-field">
+                <label>위치 유형</label>
+                <select id="ep-postype-${p.id}" class="parts-edit-input">${ptOpts}</select>
+              </div>
+              <div class="parts-edit-field parts-edit-full">
+                <label>메모</label>
+                <input type="text" id="ep-note-${p.id}" value="${esc(p.note)}" placeholder="메모" class="parts-edit-input">
+              </div>
+            </div>
+            <div class="parts-edit-actions">
+              <button class="btn btn-sm parts-edit-save" onclick="saveEditPart(${p.id})">저장</button>
+              <button class="btn btn-ghost btn-sm" onclick="cancelEditPart()">취소</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }
+
     const vtColor = p.valueType === '측정' ? '#00cc66' : p.valueType === '카탈로그' ? '#0088ff' : '#ffaa00';
     const posCell = p.axlePos != null
       ? `<span style="color:#aaa">${p.axlePos}mm</span>${p.posType ? `<br><span style="color:#444;font-size:10px">${p.posType}</span>` : ''}`
       : '<span style="color:#333">—</span>';
-    return `<tr>
+    return `<tr class="parts-row" onclick="editPart(${p.id})" style="cursor:pointer" title="클릭하여 편집">
       <td style="color:#555">${i + 1}</td>
-      <td style="font-weight:600;color:#ddd">${p.name}</td>
+      <td style="font-weight:600;color:#ddd">${esc(p.name)}</td>
       <td><span style="background:#1e1e1e;border-radius:4px;padding:2px 8px;font-size:11px;color:#aaa">${p.cat}</span></td>
       <td style="font-size:11px"><span style="color:${vtColor}">${p.valueType||'측정'}</span></td>
       <td style="text-align:center">${p.installed ? '<span style="color:#00cc66;font-size:13px">✓</span>' : '<span style="color:#333;font-size:13px">—</span>'}</td>
@@ -143,8 +242,11 @@ function renderPartsTable() {
       <td style="color:#ffaa00;font-weight:600">${fmtWeight(tw)}</td>
       <td style="color:#ccc">${p.cost.toLocaleString()}</td>
       <td style="color:#00cc66;font-weight:600">${tc.toLocaleString()}</td>
-      <td style="color:#666;font-size:12px">${p.note || '-'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="deletePart(${p.id})" style="color:#ff4444;border-color:#330000">삭제</button></td>
+      <td style="color:#666;font-size:12px">${esc(p.note) || '-'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editPart(${p.id})" style="margin-right:4px">수정</button>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deletePart(${p.id})" style="color:#ff4444;border-color:#330000">삭제</button>
+      </td>
     </tr>`;
   }).join('');
   const cats = [...new Set(S.parts.map(p => p.cat))].length;

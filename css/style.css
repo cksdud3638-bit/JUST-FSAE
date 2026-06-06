@@ -399,3 +399,20 @@ textarea.form-control{resize:vertical;min-height:80px}
 .wd-cmp-d{font-weight:700}
 .wd-compare-note{font-size:11px;color:#555;padding:8px 10px;background:#0f0f0f;border-radius:6px;border-left:2px solid #2a2a2a;line-height:1.6}
 @media(max-width:600px){.wd-extras-row{grid-template-columns:1fr}.wd-compare-grid{grid-template-columns:auto 1fr 1fr 1fr;font-size:11px}}
+
+/* PARTS INLINE EDIT */
+.parts-row:hover{background:rgba(255,255,255,0.025)}
+.parts-edit-row td{padding:0!important;border:none!important}
+.parts-edit-card{background:#1a1a1a;border:1px solid var(--red);border-radius:8px;padding:14px 16px;margin:4px 0}
+.parts-edit-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.parts-edit-field{display:flex;flex-direction:column;gap:4px;flex:1 1 130px}
+.parts-edit-wide{flex:2 1 220px}
+.parts-edit-full{flex:100 1 100%}
+.parts-edit-narrow{flex:0 1 90px}
+.parts-edit-field label{font-size:11px;color:#666;letter-spacing:0.2px}
+.parts-edit-input{background:#0f0f0f;border:1px solid #2a2a2a;color:#ddd;border-radius:5px;padding:6px 8px;font-size:12px;width:100%;box-sizing:border-box;font-family:inherit}
+.parts-edit-input:focus{outline:none;border-color:rgba(255,0,0,0.5)}
+.parts-edit-check{display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa;cursor:pointer;padding-top:6px}
+.parts-edit-actions{display:flex;gap:8px;justify-content:flex-end}
+.parts-edit-save{background:var(--red)!important;color:#fff!important;border:none!important;font-weight:700!important}
+.parts-edit-save:hover{opacity:0.85}
