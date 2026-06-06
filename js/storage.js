@@ -29,6 +29,8 @@ const S = {
   cornerWeights: { fl: 0, fr: 0, rl: 0, rr: 0 },
   wheelbase: 1600,
   targetFrontPct: 45,
+  driverConfig: { enabled: false, mass: 70, axlePos: 800 },
+  fuelConfig: { enabled: false, liters: 0, density: 0.74, axlePos: 900 },
 };
 
 // ═══════════════════════════════════════════════
@@ -98,6 +100,8 @@ async function exportData() {
     cornerWeights: S.cornerWeights,
     wheelbase: S.wheelbase,
     targetFrontPct: S.targetFrontPct,
+    driverConfig: S.driverConfig,
+    fuelConfig: S.fuelConfig,
   };
   const json = JSON.stringify(data, null, 2);
   const filename = 'JUST_FSAE_저장_' + new Date().toISOString().slice(0, 10) + '.json';
@@ -141,8 +145,11 @@ function handleImport(input) {
       if (data.cornerWeights  !== undefined) S.cornerWeights  = data.cornerWeights;
       if (data.wheelbase      !== undefined) S.wheelbase      = data.wheelbase;
       if (data.targetFrontPct !== undefined) S.targetFrontPct = data.targetFrontPct;
-      ['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','cornerWeights','wheelbase','targetFrontPct'].forEach(k => save(k));
+      if (data.driverConfig   !== undefined) S.driverConfig   = data.driverConfig;
+      if (data.fuelConfig     !== undefined) S.fuelConfig     = data.fuelConfig;
+      ['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','cornerWeights','wheelbase','targetFrontPct','driverConfig','fuelConfig'].forEach(k => save(k));
       buildInspection();
+      if (typeof restoreDriverFuelInputs === 'function') restoreDriverFuelInputs();
       renderLapTable();
       renderDriverStats();
       renderParts();

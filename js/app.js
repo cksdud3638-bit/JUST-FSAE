@@ -164,6 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const tgtEl = document.getElementById('pt-target-front-pct');
       if (tgtEl) { tgtEl.value = S.targetFrontPct; syncTargetPct(); }
     }
+    if (data.driverConfig != null) { S.driverConfig = data.driverConfig; restoreDriverFuelInputs(); }
+    if (data.fuelConfig   != null) { S.fuelConfig   = data.fuelConfig;   restoreDriverFuelInputs(); }
 
     // Legacy save-time display
     if (data.lastSave) {

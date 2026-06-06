@@ -190,6 +190,7 @@ function calcCornerWeights() {
 function saveCornerWeights() {
   calcCornerWeights();
   save('cornerWeights');
+  renderMeasuredComparison();
 }
 
 function restoreCornerWeights() {
@@ -222,6 +223,23 @@ function calcWeightDistribution() {
 
   if (M <= 0 || posCount === 0) return null;
 
+  // 드라이버 포함
+  const dc = S.driverConfig || {};
+  let driverIncluded = false;
+  if (dc.enabled && (dc.mass || 0) > 0 && dc.axlePos != null) {
+    const dg = (dc.mass || 0) * 1000;
+    M += dg; momentSum += dg * parseFloat(dc.axlePos); driverIncluded = true;
+  }
+  // 연료 포함
+  const fc = S.fuelConfig || {};
+  let fuelIncluded = false;
+  if (fc.enabled && (fc.liters || 0) > 0 && fc.axlePos != null) {
+    const fg = (fc.liters || 0) * (fc.density || 0.74) * 1000;
+    M += fg; momentSum += fg * parseFloat(fc.axlePos); fuelIncluded = true;
+  }
+
+  if (M <= 0) return null;
+
   // xCG: 무게중심 위치 (앞차축 기준 mm)
   const xCG = momentSum / M;
   // 후륜 하중: 전체질량 × 무게중심/휠베이스 (전륜 기준 모멘트 평형)
@@ -236,6 +254,7 @@ function calcWeightDistribution() {
     missingCount, missingWeight,
     wb, targetFront,
     targetDiff: (WF / M * 100) - targetFront,
+    driverIncluded, fuelIncluded,
   };
 }
 
@@ -314,7 +333,117 @@ function renderWeightDistribution() {
       <span style="color:${diffColor};font-weight:700;font-size:13px">차이 ${diffStr}</span>
     </div>
     <div style="font-size:12px;text-align:center;padding:6px 0 4px;color:${statusColor}">${statusMsg}</div>
-    <div style="font-size:11px;color:#444;text-align:right;margin-top:4px">휠베이스 ${res.wb}mm · ${res.posCount}/${res.totalParts}개 부품 반영</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:4px">
+      ${res.driverIncluded ? `<span class="wd-extra-tag">드라이버 ${(dc.mass||0)}kg</span>` : ''}
+      ${res.fuelIncluded   ? `<span class="wd-extra-tag">연료 ${((fc.liters||0)*(fc.density||0.74)).toFixed(2)}kg</span>` : ''}
+    </div>
+    <div style="font-size:11px;color:#444;text-align:right">휠베이스 ${res.wb}mm · 부품 ${res.posCount}/${res.totalParts}개 반영</div>
+  `;
+  renderMeasuredComparison();
+}
+
+// ── Driver / Fuel toggles ─────────────────────
+function onDriverToggle() {
+  if (!S.driverConfig) S.driverConfig = { enabled: false, mass: 70, axlePos: 800 };
+  S.driverConfig.enabled = document.getElementById('dc-enabled')?.checked || false;
+  const inp = document.getElementById('dc-inputs');
+  if (inp) inp.style.display = S.driverConfig.enabled ? '' : 'none';
+  save('driverConfig');
+  renderWeightDistribution();
+}
+
+function onDriverInput() {
+  if (!S.driverConfig) S.driverConfig = {};
+  S.driverConfig.mass    = parseFloat(document.getElementById('dc-mass')?.value)    || 70;
+  S.driverConfig.axlePos = parseFloat(document.getElementById('dc-axlepos')?.value) || 800;
+  save('driverConfig');
+  renderWeightDistribution();
+}
+
+function onFuelToggle() {
+  if (!S.fuelConfig) S.fuelConfig = { enabled: false, liters: 0, density: 0.74, axlePos: 900 };
+  S.fuelConfig.enabled = document.getElementById('fc-enabled')?.checked || false;
+  const inp = document.getElementById('fc-inputs');
+  if (inp) inp.style.display = S.fuelConfig.enabled ? '' : 'none';
+  updateFuelMassDisplay();
+  save('fuelConfig');
+  renderWeightDistribution();
+}
+
+function onFuelInput() {
+  if (!S.fuelConfig) S.fuelConfig = {};
+  S.fuelConfig.liters  = parseFloat(document.getElementById('fc-liters')?.value)  || 0;
+  S.fuelConfig.density = parseFloat(document.getElementById('fc-density')?.value) || 0.74;
+  S.fuelConfig.axlePos = parseFloat(document.getElementById('fc-axlepos')?.value) || 900;
+  updateFuelMassDisplay();
+  save('fuelConfig');
+  renderWeightDistribution();
+}
+
+function updateFuelMassDisplay() {
+  const fc = S.fuelConfig || {};
+  const el = document.getElementById('fc-mass-display');
+  if (el) el.textContent = ((fc.liters || 0) * (fc.density || 0.74)).toFixed(2) + ' kg';
+}
+
+function restoreDriverFuelInputs() {
+  const dc = S.driverConfig || { enabled: false, mass: 70, axlePos: 800 };
+  const fc = S.fuelConfig   || { enabled: false, liters: 0, density: 0.74, axlePos: 900 };
+  const setV = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+  const setC = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+  setC('dc-enabled', dc.enabled); setV('dc-mass', dc.mass ?? 70); setV('dc-axlepos', dc.axlePos ?? 800);
+  const dcInp = document.getElementById('dc-inputs');
+  if (dcInp) dcInp.style.display = dc.enabled ? '' : 'none';
+  setC('fc-enabled', fc.enabled); setV('fc-liters', fc.liters ?? 0);
+  setV('fc-density', fc.density ?? 0.74); setV('fc-axlepos', fc.axlePos ?? 900);
+  const fcInp = document.getElementById('fc-inputs');
+  if (fcInp) fcInp.style.display = fc.enabled ? '' : 'none';
+  updateFuelMassDisplay();
+}
+
+// ── Measured comparison ───────────────────────
+function renderMeasuredComparison() {
+  const panel = document.getElementById('wd-compare');
+  if (!panel) return;
+  const cw = S.cornerWeights || {};
+  const fl = parseFloat(cw.fl) || 0, fr = parseFloat(cw.fr) || 0;
+  const rl = parseFloat(cw.rl) || 0, rr = parseFloat(cw.rr) || 0;
+  const mTotal = fl + fr + rl + rr;
+  const note = `<div class="wd-compare-note">⚠ 예상값은 계산값이며, 실제 배분은 코너 웨이트 측정값을 기준으로 판단해야 합니다</div>`;
+  if (mTotal <= 0) {
+    panel.innerHTML = `<div class="wd-compare-none">코너 웨이트 측정값이 없습니다<br><small>코너 무게 측정 섹션에서 FL/FR/RL/RR 값을 입력하세요</small></div>${note}`;
+    return;
+  }
+  const mFrontPct = (fl + fr) / mTotal * 100;
+  const mRearPct  = (rl + rr) / mTotal * 100;
+  const res = calcWeightDistribution();
+  const cFrontPct = res ? res.frontPct     : null;
+  const cRearPct  = res ? res.rearPct      : null;
+  const cTotal    = res ? (res.M / 1000)   : null;
+  const dF  = cFrontPct != null ? cFrontPct - mFrontPct : null;
+  const dT  = cTotal    != null ? cTotal    - mTotal    : null;
+  const dc  = d => d == null ? '#555' : Math.abs(d) <= 2 ? '#00cc66' : Math.abs(d) <= 5 ? '#ffaa00' : '#ff4444';
+  const fmt = (d, u) => d == null ? '—' : `${d >= 0 ? '+' : ''}${d.toFixed(u === 'kg' ? 2 : 1)}${u}`;
+  panel.innerHTML = `
+    <div class="wd-compare-grid">
+      <div class="wd-cmp-h"></div>
+      <div class="wd-cmp-h">예상값</div>
+      <div class="wd-cmp-h">실측값</div>
+      <div class="wd-cmp-h">차이</div>
+      <div class="wd-cmp-l">전륜 배분</div>
+      <div class="wd-cmp-c" style="color:#0088ff">${cFrontPct != null ? cFrontPct.toFixed(1)+'%' : '—'}</div>
+      <div class="wd-cmp-m">${mFrontPct.toFixed(1)}%</div>
+      <div class="wd-cmp-d" style="color:${dc(dF)}">${fmt(dF,'%p')}</div>
+      <div class="wd-cmp-l">후륜 배분</div>
+      <div class="wd-cmp-c" style="color:#ee3300">${cRearPct  != null ? cRearPct.toFixed(1)+'%'  : '—'}</div>
+      <div class="wd-cmp-m">${mRearPct.toFixed(1)}%</div>
+      <div class="wd-cmp-d" style="color:${dc(dF != null ? -dF : null)}">${fmt(dF != null ? -dF : null,'%p')}</div>
+      <div class="wd-cmp-l">총 중량</div>
+      <div class="wd-cmp-c" style="color:#ffaa00">${cTotal != null ? cTotal.toFixed(2)+' kg' : '—'}</div>
+      <div class="wd-cmp-m">${mTotal.toFixed(2)} kg</div>
+      <div class="wd-cmp-d" style="color:${dc(dT)}">${fmt(dT,'kg')}</div>
+    </div>
+    ${note}
   `;
 }
 

@@ -1069,10 +1069,75 @@
       </div>
       <button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="saveVehicleConfig()">저장</button>
     </div>
+    <!-- 드라이버 / 연료 포함 설정 -->
+    <div class="wd-extras-row">
+      <div class="wd-extra-item">
+        <div class="wd-extra-header">
+          <span class="wd-extra-title">드라이버 포함</span>
+          <label class="toggle-sw">
+            <input type="checkbox" id="dc-enabled" onchange="onDriverToggle()">
+            <span class="toggle-sw-track"></span>
+          </label>
+        </div>
+        <div class="wd-extra-inputs" id="dc-inputs" style="display:none">
+          <div class="wd-extra-row">
+            <div class="form-group-sm">
+              <label>질량 (kg)</label>
+              <input type="number" class="form-control" id="dc-mass" value="70" min="0" step="0.1" oninput="onDriverInput()">
+            </div>
+            <div class="form-group-sm">
+              <label>앞차축 기준 위치 (mm)</label>
+              <input type="number" class="form-control" id="dc-axlepos" value="800" step="10" oninput="onDriverInput()">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wd-extra-item">
+        <div class="wd-extra-header">
+          <span class="wd-extra-title">연료 포함</span>
+          <label class="toggle-sw">
+            <input type="checkbox" id="fc-enabled" onchange="onFuelToggle()">
+            <span class="toggle-sw-track"></span>
+          </label>
+        </div>
+        <div class="wd-extra-inputs" id="fc-inputs" style="display:none">
+          <div class="wd-extra-row">
+            <div class="form-group-sm">
+              <label>연료량 (L)</label>
+              <input type="number" class="form-control" id="fc-liters" value="0" min="0" step="0.1" oninput="onFuelInput()">
+            </div>
+            <div class="form-group-sm">
+              <label>밀도 (kg/L)</label>
+              <input type="number" class="form-control" id="fc-density" value="0.74" min="0.01" step="0.01" oninput="onFuelInput()">
+            </div>
+          </div>
+          <div class="wd-extra-row">
+            <div class="form-group-sm">
+              <label>탱크 위치 (mm)</label>
+              <input type="number" class="form-control" id="fc-axlepos" value="900" step="10" oninput="onFuelInput()">
+            </div>
+            <div class="form-group-sm">
+              <label>연료 질량 (자동)</label>
+              <div id="fc-mass-display" class="wd-calc-val">0.00 kg</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 배분 계산 결과 -->
     <div id="wd-result">
       <div class="empty-state" style="padding:20px">
         <div class="empty-icon">⚖️</div>
         <p>부품 등록 시 앞차축 기준 위치를 입력하면<br>전후 무게 배분이 자동 계산됩니다</p>
+      </div>
+    </div>
+
+    <!-- 실측값 비교 -->
+    <div class="wd-compare-section">
+      <div class="wd-compare-title">실측값 비교 (코너 웨이트)</div>
+      <div id="wd-compare">
+        <div class="wd-compare-none">코너 웨이트 측정값이 없습니다<br><small>코너 무게 측정 섹션에서 FL/FR/RL/RR 값을 입력하세요</small></div>
       </div>
     </div>
   </div>
