@@ -12,9 +12,15 @@ function showNewLog() {
 
 function clearLogForm() {
   ['log-date','log-temp','log-fride','log-rride','log-ftire','log-rtire',
-   'log-fcamber','log-rcamber','log-tiretype','log-result','log-issues','log-next'].forEach(id=>{
+   'log-fcamber','log-rcamber','log-tiretype','log-result','log-issues','log-next',
+   'log-coolant-temp','log-oil-temp','log-max-rpm','log-run-time','log-run-dist',
+   'log-fuel-used','log-stop-reason'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.value = '';
+  });
+  ['log-oil-leak','log-coolant-leak','log-bolt-loose'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.checked = false;
   });
   document.getElementById('log-weather').value='맑음';
   document.getElementById('log-track').value='건조';
@@ -40,6 +46,18 @@ function saveLog() {
     result: v('log-result'),
     issues: v('log-issues'),
     next: v('log-next'),
+    cooling: {
+      coolantTemp: v('log-coolant-temp'),
+      oilTemp:     v('log-oil-temp'),
+      maxRpm:      v('log-max-rpm'),
+      runTime:     v('log-run-time'),
+      runDist:     v('log-run-dist'),
+      fuelUsed:    v('log-fuel-used'),
+      oilLeak:     document.getElementById('log-oil-leak')?.checked || false,
+      coolantLeak: document.getElementById('log-coolant-leak')?.checked || false,
+      boltLoose:   document.getElementById('log-bolt-loose')?.checked || false,
+      stopReason:  v('log-stop-reason'),
+    },
   };
 
   if (editLogId) {
@@ -79,6 +97,9 @@ function renderTestLogs() {
         ${log.setup.rride?`<span class="log-tag">뒤 RH: ${log.setup.rride}mm</span>`:''}
         ${log.setup.tiretype?`<span class="log-tag">${log.setup.tiretype}</span>`:''}
         ${log.issues?'<span class="log-tag" style="color:#ff4444;border-color:#330000">⚠ 이슈</span>':''}
+        ${log.cooling?.coolantTemp?`<span class="log-tag" style="color:#0088ff;border-color:#001133">💧 냉각수 ${log.cooling.coolantTemp}°C</span>`:''}
+        ${log.cooling?.oilTemp?`<span class="log-tag" style="color:#ffaa00;border-color:#332200">🛢 오일 ${log.cooling.oilTemp}°C</span>`:''}
+        ${log.cooling?.oilLeak||log.cooling?.coolantLeak||log.cooling?.boltLoose?`<span class="log-tag" style="color:#ff6600;border-color:#331100">⚠ 누유/누수</span>`:''}
       </div>
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();editLog(${log.id})">편집</button>
@@ -110,6 +131,15 @@ function selectLog(id) {
   document.getElementById('log-result').value = log.result||'';
   document.getElementById('log-issues').value = log.issues||'';
   document.getElementById('log-next').value = log.next||'';
+  // cooling fields
+  const c = log.cooling || {};
+  const setV = (id, val) => { const el = document.getElementById(id); if (el) el.value = val||''; };
+  const setC = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+  setV('log-coolant-temp', c.coolantTemp); setV('log-oil-temp', c.oilTemp);
+  setV('log-max-rpm', c.maxRpm); setV('log-run-time', c.runTime);
+  setV('log-run-dist', c.runDist); setV('log-fuel-used', c.fuelUsed);
+  setC('log-oil-leak', c.oilLeak); setC('log-coolant-leak', c.coolantLeak);
+  setC('log-bolt-loose', c.boltLoose); setV('log-stop-reason', c.stopReason);
   renderTestLogs();
 }
 

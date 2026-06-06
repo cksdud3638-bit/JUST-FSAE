@@ -19,12 +19,14 @@ const db = firebase.database();
 
 const S = {
   inspection: {},
+  inspectionMeta: {},
   lapTimes: [],
   testLogs: [],
   feedbacks: [],
   setupHistory: [],
   budget: { limits: {}, expenses: [] },
   parts: [],
+  cornerWeights: { fl: 0, fr: 0, rl: 0, rr: 0 },
 };
 
 // ═══════════════════════════════════════════════
@@ -82,14 +84,16 @@ if (!navigator.onLine) setSyncState('offline');
 // ═══════════════════════════════════════════════
 async function exportData() {
   const data = {
-    version: '1.0',
+    version: '1.1',
     exported: new Date().toISOString(),
     inspection: S.inspection,
+    inspectionMeta: S.inspectionMeta,
     lapTimes: S.lapTimes,
     testLogs: S.testLogs,
     feedbacks: S.feedbacks,
     setupHistory: S.setupHistory,
     parts: S.parts,
+    cornerWeights: S.cornerWeights,
   };
   const json = JSON.stringify(data, null, 2);
   const filename = 'JUST_FSAE_저장_' + new Date().toISOString().slice(0, 10) + '.json';
@@ -123,13 +127,15 @@ function handleImport(input) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.inspection   !== undefined) S.inspection   = data.inspection;
-      if (data.lapTimes     !== undefined) S.lapTimes     = data.lapTimes;
-      if (data.testLogs     !== undefined) S.testLogs     = data.testLogs;
-      if (data.feedbacks    !== undefined) S.feedbacks    = data.feedbacks;
-      if (data.setupHistory !== undefined) S.setupHistory = data.setupHistory;
-      if (data.parts        !== undefined) S.parts        = data.parts;
-      ['inspection','lapTimes','testLogs','feedbacks','setupHistory','parts'].forEach(k => save(k));
+      if (data.inspection     !== undefined) S.inspection     = data.inspection;
+      if (data.inspectionMeta !== undefined) S.inspectionMeta = data.inspectionMeta;
+      if (data.lapTimes       !== undefined) S.lapTimes       = data.lapTimes;
+      if (data.testLogs       !== undefined) S.testLogs       = data.testLogs;
+      if (data.feedbacks      !== undefined) S.feedbacks      = data.feedbacks;
+      if (data.setupHistory   !== undefined) S.setupHistory   = data.setupHistory;
+      if (data.parts          !== undefined) S.parts          = data.parts;
+      if (data.cornerWeights  !== undefined) S.cornerWeights  = data.cornerWeights;
+      ['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','cornerWeights'].forEach(k => save(k));
       buildInspection();
       renderLapTable();
       renderDriverStats();

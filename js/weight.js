@@ -4,15 +4,24 @@
 let partsWeightChart = null, partsCostChart = null;
 const PARTS_COLORS = ['#ff0000','#00cc66','#0088ff','#ffaa00','#cc66ff','#ff6688','#00cccc','#ff8800'];
 
+function fmtWeight(g) {
+  if (!g && g !== 0) return '0 g';
+  const n = parseFloat(g);
+  if (n >= 1000) return (n / 1000).toFixed(2).replace(/\.?0+$/, '') + ' kg';
+  return n.toLocaleString() + ' g';
+}
+
 function addPart() {
-  const name = v('pt-name').trim();
-  const cat  = v('pt-cat');
-  const weight = parseFloat(v('pt-weight')) || 0;
-  const cost   = parseFloat(v('pt-cost'))   || 0;
-  const qty    = Math.max(1, parseInt(v('pt-qty')) || 1);
-  const note   = v('pt-note').trim();
+  const name      = v('pt-name').trim();
+  const cat       = v('pt-cat');
+  const weight    = parseFloat(v('pt-weight')) || 0;
+  const cost      = parseFloat(v('pt-cost'))   || 0;
+  const qty       = Math.max(1, parseInt(v('pt-qty')) || 1);
+  const note      = v('pt-note').trim();
+  const valueType = v('pt-value-type') || '측정';
+  const installed = document.getElementById('pt-installed')?.checked || false;
   if (!name) { alert('부품명을 입력하세요.'); return; }
-  S.parts.push({ id: Date.now(), name, cat, weight, cost, qty, note });
+  S.parts.push({ id: Date.now(), name, cat, weight, cost, qty, note, valueType, installed });
   save('parts');
   renderParts();
   document.getElementById('pt-name').value   = '';
@@ -20,6 +29,8 @@ function addPart() {
   document.getElementById('pt-cost').value   = '';
   document.getElementById('pt-qty').value    = '1';
   document.getElementById('pt-note').value   = '';
+  const instEl = document.getElementById('pt-installed');
+  if (instEl) instEl.checked = false;
 }
 
 function deletePart(id) {
@@ -35,29 +46,31 @@ function renderParts() {
 }
 
 function renderPartsTable() {
-  const tbody  = document.getElementById('parts-tbody');
-  const empty  = document.getElementById('parts-empty');
+  const tbody = document.getElementById('parts-tbody');
+  const empty = document.getElementById('parts-empty');
   if (!tbody) return;
   if (!S.parts.length) {
     tbody.innerHTML = '';
     if (empty) empty.style.display = '';
-    updatePartsTotals(0, 0, 0);
+    updatePartsTotals(0, 0, 0, 0);
     return;
   }
   if (empty) empty.style.display = 'none';
-  let totalWeight = 0, totalQty = 0;
-  let totalCost   = 0;
+  let totalWeight = 0, totalQty = 0, totalCost = 0;
   tbody.innerHTML = S.parts.map((p, i) => {
     const tw = p.weight * p.qty;
     const tc = p.cost   * p.qty;
     totalWeight += tw; totalCost += tc; totalQty += p.qty;
+    const vtColor = p.valueType === '측정' ? '#00cc66' : p.valueType === '카탈로그' ? '#0088ff' : '#ffaa00';
     return `<tr>
       <td style="color:#555">${i + 1}</td>
       <td style="font-weight:600;color:#ddd">${p.name}</td>
       <td><span style="background:#1e1e1e;border-radius:4px;padding:2px 8px;font-size:11px;color:#aaa">${p.cat}</span></td>
-      <td style="color:#ccc">${p.weight.toLocaleString()}</td>
+      <td style="font-size:11px"><span style="color:${vtColor}">${p.valueType||'측정'}</span></td>
+      <td style="text-align:center">${p.installed ? '<span style="color:#00cc66;font-size:13px">✓</span>' : '<span style="color:#333;font-size:13px">—</span>'}</td>
+      <td style="color:#ccc">${fmtWeight(p.weight)}</td>
       <td style="color:#ccc">${p.qty}</td>
-      <td style="color:#ffaa00;font-weight:600">${tw.toLocaleString()}</td>
+      <td style="color:#ffaa00;font-weight:600">${fmtWeight(tw)}</td>
       <td style="color:#ccc">${p.cost.toLocaleString()}</td>
       <td style="color:#00cc66;font-weight:600">${tc.toLocaleString()}</td>
       <td style="color:#666;font-size:12px">${p.note || '-'}</td>
@@ -70,10 +83,62 @@ function renderPartsTable() {
 
 function updatePartsTotals(w, c, cats, qty) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('pt-total-weight', w.toLocaleString());
+  set('pt-total-weight', fmtWeight(w));
   set('pt-total-cost',   c.toLocaleString());
   set('pt-total-count',  (qty || 0));
   set('pt-cat-count',    cats);
+
+  const target = parseFloat(document.getElementById('pt-target-weight')?.value) || 0;
+  const diffEl = document.getElementById('pt-weight-diff');
+  if (diffEl && target > 0) {
+    const diff = w - target;
+    if (diff > 0) {
+      diffEl.textContent = '+' + fmtWeight(diff) + ' 초과';
+      diffEl.style.color = '#ff4444';
+    } else if (diff < 0) {
+      diffEl.textContent = fmtWeight(Math.abs(diff)) + ' 여유';
+      diffEl.style.color = '#00cc66';
+    } else {
+      diffEl.textContent = '목표 달성';
+      diffEl.style.color = '#ffaa00';
+    }
+  } else if (diffEl) {
+    diffEl.textContent = '—';
+    diffEl.style.color = '#555';
+  }
+}
+
+function calcCornerWeights() {
+  const get = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const fl = get('cw-fl'), fr = get('cw-fr'), rl = get('cw-rl'), rr = get('cw-rr');
+  const total = fl + fr + rl + rr;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  if (total <= 0) {
+    set('cw-total', '—'); set('cw-front-pct', '—'); set('cw-rear-pct', '—');
+    set('cw-left-pct', '—'); set('cw-right-pct', '—');
+    return;
+  }
+  const front = fl + fr, rear = rl + rr;
+  const left  = fl + rl, right = fr + rr;
+  set('cw-total',     total.toFixed(1) + ' kg');
+  set('cw-front-pct', (front / total * 100).toFixed(1) + '%');
+  set('cw-rear-pct',  (rear  / total * 100).toFixed(1) + '%');
+  set('cw-left-pct',  (left  / total * 100).toFixed(1) + '%');
+  set('cw-right-pct', (right / total * 100).toFixed(1) + '%');
+  S.cornerWeights = { fl, fr, rl, rr };
+}
+
+function saveCornerWeights() {
+  calcCornerWeights();
+  save('cornerWeights');
+}
+
+function restoreCornerWeights() {
+  const cw = S.cornerWeights || {};
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+  set('cw-fl', cw.fl); set('cw-fr', cw.fr);
+  set('cw-rl', cw.rl); set('cw-rr', cw.rr);
+  if (cw.fl || cw.fr || cw.rl || cw.rr) calcCornerWeights();
 }
 
 function renderPartsSummary() {
@@ -102,7 +167,7 @@ function renderPartsSummary() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
           <div>
             <div style="color:#888;margin-bottom:3px">총 무게</div>
-            <div style="color:#ffaa00;font-weight:700">${d.weight.toLocaleString()} g</div>
+            <div style="color:#ffaa00;font-weight:700">${fmtWeight(d.weight)}</div>
             <div style="color:#555;font-size:11px">${wPct}%</div>
           </div>
           <div>
@@ -128,11 +193,11 @@ function renderPartsCharts() {
   const weights = labels.map(l => cats[l].weight);
   const costs   = labels.map(l => cats[l].cost);
   const colors  = labels.map((_, i) => PARTS_COLORS[i % PARTS_COLORS.length]);
-  const chartOpts = (unit) => ({
+  const chartOpts = (isWeight) => ({
     responsive: true,
     plugins: {
       legend: { position: 'right', labels: { color: '#888', font: { size: 11 }, boxWidth: 12, padding: 8 } },
-      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()} ${unit}` } }
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${isWeight ? fmtWeight(ctx.parsed) : ctx.parsed.toLocaleString() + ' 원'}` } }
     }
   });
   const wEl = document.getElementById('partsWeightChart');
@@ -142,7 +207,7 @@ function renderPartsCharts() {
       partsWeightChart = new Chart(wEl.getContext('2d'), {
         type: 'doughnut',
         data: { labels, datasets: [{ data: weights, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
-        options: chartOpts('g')
+        options: chartOpts(true)
       });
     }
   }
@@ -153,7 +218,7 @@ function renderPartsCharts() {
       partsCostChart = new Chart(cEl.getContext('2d'), {
         type: 'doughnut',
         data: { labels, datasets: [{ data: costs, backgroundColor: colors, borderColor: '#141414', borderWidth: 2 }] },
-        options: chartOpts('원')
+        options: chartOpts(false)
       });
     }
   }

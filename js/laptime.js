@@ -22,19 +22,23 @@ function addLapTime() {
   const track = v('lt-track');
   const note = v('lt-note').trim();
   const sessionId = v('lt-session') || '';
+  const sessionNum = v('lt-session-num').trim();
+  const valid = v('lt-valid') || 'valid';
+  const tireSet = v('lt-tireset').trim();
+  const setupVer = v('lt-setup-ver').trim();
 
   if (!driver || !date || !time) { alert('드라이버, 날짜, 랩타임을 입력하세요.'); return; }
   const sec = parseTime(time);
   if (sec === null) { alert('랩타임 형식: 1:23.456'); return; }
 
-  S.lapTimes.push({ id: Date.now(), driver, date, time, sec, weather, track, note, sessionId });
+  S.lapTimes.push({ id: Date.now(), driver, date, time, sec, weather, track, note, sessionId, sessionNum, valid, tireSet, setupVer });
   save('lapTimes');
   renderLapTable();
   renderDriverStats();
   renderLapCharts();
-  document.getElementById('lt-driver').value='';
-  document.getElementById('lt-time').value='';
-  document.getElementById('lt-note').value='';
+  ['lt-driver','lt-time','lt-note','lt-session-num','lt-tireset','lt-setup-ver'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
 }
 
 function populateTestSessions() {
@@ -56,31 +60,46 @@ function deleteLap(id) {
 function renderLapTable() {
   const tbody = document.getElementById('lap-tbody');
   if (!S.lapTimes.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#555">기록 없음</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:32px;color:#555">기록 없음</td></tr>';
     return;
   }
+  const validLaps = S.lapTimes.filter(l => l.valid !== 'invalid');
   const bests = {};
-  S.lapTimes.forEach(l => {
+  validLaps.forEach(l => {
     if (!bests[l.driver] || l.sec < bests[l.driver]) bests[l.driver] = l.sec;
   });
   tbody.innerHTML = S.lapTimes.map((l, i) => {
-    const isBest = l.sec === bests[l.driver];
+    const isInvalid = l.valid === 'invalid';
+    const isBest = !isInvalid && l.sec === bests[l.driver];
     const sess = l.sessionId ? S.testLogs.find(t => String(t.id) === String(l.sessionId)) : null;
     const sessLabel = sess
       ? `<span style="background:#1e1e1e;border-radius:4px;padding:2px 6px;font-size:10px;color:#0088ff;border:1px solid #001133">${sess.date}</span>`
-      : '<span style="color:#333;font-size:11px">-</span>';
-    return `<tr>
+      : (l.sessionNum ? `<span style="color:#888;font-size:11px">${l.sessionNum}</span>` : '<span style="color:#333;font-size:11px">-</span>');
+    return `<tr style="${isInvalid ? 'opacity:0.45;' : ''}">
       <td style="color:#555">${i + 1}</td>
       <td style="font-weight:600;color:#ddd">${l.driver}</td>
       <td style="color:#888">${l.date}</td>
-      <td class="${isBest ? 'best-time' : ''}">${l.time} ${isBest ? '<span class="lap-badge badge-best">BEST</span>' : ''}</td>
+      <td class="${isBest ? 'best-time' : ''}">
+        ${l.time}
+        ${isBest ? '<span class="lap-badge badge-best">BEST</span>' : ''}
+        ${isInvalid ? '<span class="lap-badge" style="background:rgba(255,100,0,0.15);color:#ff6600;border:1px solid rgba(255,100,0,0.3)">무효</span>' : ''}
+      </td>
       <td>${l.weather}</td>
       <td>${l.track}</td>
       <td>${sessLabel}</td>
+      <td style="color:#888;font-size:11px">${l.tireSet||'-'}</td>
+      <td style="color:#888;font-size:11px">${l.setupVer||'-'}</td>
       <td style="color:#666;font-size:12px">${l.note || '-'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="deleteLap(${l.id})" style="color:#ff4444;border-color:#330000">삭제</button></td>
     </tr>`;
   }).join('');
+}
+
+function calcStdDev(times) {
+  if (times.length < 2) return 0;
+  const avg = times.reduce((a,b)=>a+b,0) / times.length;
+  const variance = times.reduce((a,t)=>a+(t-avg)**2,0) / times.length;
+  return Math.sqrt(variance);
 }
 
 function renderDriverStats() {
@@ -91,18 +110,26 @@ function renderDriverStats() {
   }
   const drivers = {};
   S.lapTimes.forEach(l => {
-    if (!drivers[l.driver]) drivers[l.driver] = [];
-    drivers[l.driver].push(l.sec);
+    if (!drivers[l.driver]) drivers[l.driver] = { all: [], valid: [] };
+    drivers[l.driver].all.push(l.sec);
+    if (l.valid !== 'invalid') drivers[l.driver].valid.push(l.sec);
   });
-  container.innerHTML = Object.entries(drivers).map(([d, times]) => {
+  container.innerHTML = Object.entries(drivers).map(([d, data]) => {
+    const times = data.valid.length ? data.valid : data.all;
     const best = Math.min(...times);
     const avg = times.reduce((a,b)=>a+b,0)/times.length;
+    const stddev = calcStdDev(times);
+    const diff = avg - best;
     return `<div style="background:#1a1a1a;border-radius:8px;padding:14px;margin-bottom:10px;border-left:3px solid var(--red)">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px">${d}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px">
-        <div><div style="color:#888;margin-bottom:3px">최고기록</div><div style="color:#00cc66;font-weight:700">${formatTime(best)}</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:700;font-size:14px">${d}</div>
+        <div style="font-size:11px;color:#555">전체 ${data.all.length}랩 · 유효 ${data.valid.length}랩</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+        <div><div style="color:#888;margin-bottom:3px">최고기록 (유효)</div><div style="color:#00cc66;font-weight:700">${formatTime(best)}</div></div>
         <div><div style="color:#888;margin-bottom:3px">평균기록</div><div style="color:#ffaa00;font-weight:600">${formatTime(avg)}</div></div>
-        <div><div style="color:#888;margin-bottom:3px">총 랩</div><div style="font-weight:600">${times.length}회</div></div>
+        <div><div style="color:#888;margin-bottom:3px">표준편차</div><div style="color:#0088ff;font-weight:600">±${stddev.toFixed(3)}s</div></div>
+        <div><div style="color:#888;margin-bottom:3px">최고 ↔ 평균 차</div><div style="color:#cc66ff;font-weight:600">+${diff.toFixed(3)}s</div></div>
       </div>
     </div>`;
   }).join('');

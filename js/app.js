@@ -145,12 +145,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   db.ref('just').on('value', function(snapshot) {
     const data = snapshot.val() || {};
-    if (data.lapTimes)     S.lapTimes     = data.lapTimes;
-    if (data.testLogs)     S.testLogs     = data.testLogs;
-    if (data.feedbacks)    S.feedbacks    = data.feedbacks;
-    if (data.setupHistory) S.setupHistory = data.setupHistory;
-    if (data.budget)       S.budget       = data.budget;
-    if (data.parts)        S.parts        = data.parts;
+    if (data.lapTimes)       S.lapTimes       = data.lapTimes;
+    if (data.testLogs)       S.testLogs       = data.testLogs;
+    if (data.feedbacks)      S.feedbacks      = data.feedbacks;
+    if (data.setupHistory)   S.setupHistory   = data.setupHistory;
+    if (data.budget)         S.budget         = data.budget;
+    if (data.parts)          S.parts          = data.parts;
+    if (data.inspectionMeta) S.inspectionMeta = data.inspectionMeta;
+    if (data.cornerWeights)  { S.cornerWeights = data.cornerWeights; restoreCornerWeights(); }
 
     // Legacy save-time display
     if (data.lastSave) {

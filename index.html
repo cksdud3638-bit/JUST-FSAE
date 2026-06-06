@@ -260,6 +260,29 @@
           <option value="">연결 안함</option>
         </select>
       </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>세션 번호</label>
+          <input type="text" class="form-control" id="lt-session-num" placeholder="예: S1, R2">
+        </div>
+        <div class="form-group">
+          <label>유효 여부</label>
+          <select class="form-control" id="lt-valid">
+            <option value="valid">유효</option>
+            <option value="invalid">무효</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>타이어 세트</label>
+          <input type="text" class="form-control" id="lt-tireset" placeholder="예: A1, B2">
+        </div>
+        <div class="form-group">
+          <label>셋업 버전</label>
+          <input type="text" class="form-control" id="lt-setup-ver" placeholder="예: v1.2">
+        </div>
+      </div>
       <button class="btn btn-primary w-full" onclick="addLapTime()">+ 기록 추가</button>
     </div>
 
@@ -293,7 +316,7 @@
         <thead>
           <tr>
             <th>#</th><th>드라이버</th><th>날짜</th><th>랩타임</th>
-            <th>날씨</th><th>노면</th><th>세션</th><th>메모</th><th></th>
+            <th>날씨</th><th>노면</th><th>세션</th><th>타이어셋</th><th>셋업</th><th>메모</th><th></th>
           </tr>
         </thead>
         <tbody id="lap-tbody"></tbody>
@@ -520,6 +543,53 @@
           <textarea class="form-control" id="log-next" rows="2" placeholder="다음 세션에서 시도할 것들..."></textarea>
         </div>
 
+        <div class="divider"></div>
+        <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">냉각 &amp; 운행 데이터</div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>최고 냉각수 온도 (°C)</label>
+            <input type="number" class="form-control" id="log-coolant-temp" placeholder="85">
+          </div>
+          <div class="form-group">
+            <label>최고 오일 온도 (°C)</label>
+            <input type="number" class="form-control" id="log-oil-temp" placeholder="100">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>최고 RPM</label>
+            <input type="number" class="form-control" id="log-max-rpm" placeholder="11000">
+          </div>
+          <div class="form-group">
+            <label>운행 시간 (분)</label>
+            <input type="number" class="form-control" id="log-run-time" placeholder="30" step="0.1">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>운행 거리 (km)</label>
+            <input type="number" class="form-control" id="log-run-dist" placeholder="10" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>연료 소모 (L)</label>
+            <input type="number" class="form-control" id="log-fuel-used" placeholder="3.5" step="0.1">
+          </div>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="log-oil-leak"> 오일 누유
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="log-coolant-leak"> 냉각수 누수
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="log-bolt-loose"> 볼트 이완
+          </label>
+        </div>
+        <div class="form-group">
+          <label>테스트 중단 사유</label>
+          <input type="text" class="form-control" id="log-stop-reason" placeholder="중단 없음 또는 사유 입력">
+        </div>
         <div class="flex gap-3 mt-4">
           <button class="btn btn-primary" style="flex:1" onclick="saveLog()">저장</button>
           <button class="btn btn-secondary" onclick="clearLogForm()">초기화</button>
@@ -804,9 +874,9 @@
   <!-- 전체 요약 stat cards -->
   <div class="grid-4 mb-6">
     <div class="stat-card red">
-      <div class="stat-label">총 차량 무게</div>
+      <div class="stat-label">등록 부품 총중량</div>
       <div class="stat-value" id="pt-total-weight">0</div>
-      <div class="stat-sub">g</div>
+      <div class="stat-sub" id="pt-weight-diff" style="color:#555">—</div>
       <div class="stat-bar"><div class="stat-bar-fill" id="pt-weight-bar" style="width:0%"></div></div>
     </div>
     <div class="stat-card yellow">
@@ -869,6 +939,25 @@
         <label>메모</label>
         <input type="text" class="form-control" id="pt-note" placeholder="재질, 제조사 등 (선택)">
       </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>목표 총중량 (g)</label>
+          <input type="number" class="form-control" id="pt-target-weight" placeholder="예: 180000" oninput="renderParts()">
+        </div>
+        <div class="form-group">
+          <label>무게 유형</label>
+          <select class="form-control" id="pt-value-type">
+            <option value="측정">측정값</option>
+            <option value="카탈로그">카탈로그값</option>
+            <option value="추정">추정값</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="pt-installed"> 설치 완료
+        </label>
+      </div>
       <button class="btn btn-primary w-full" onclick="addPart()">+ 부품 추가</button>
     </div>
 
@@ -905,13 +994,67 @@
         <thead>
           <tr>
             <th>#</th><th>부품명</th><th>카테고리</th>
-            <th>무게(g/개)</th><th>수량</th><th>총 무게(g)</th>
+            <th>유형</th><th>설치</th><th>무게/개</th><th>수량</th><th>총 무게</th>
             <th>비용(원/개)</th><th>총 비용(원)</th><th>메모</th><th></th>
           </tr>
         </thead>
         <tbody id="parts-tbody"></tbody>
       </table>
       <div class="empty-state" id="parts-empty"><div class="empty-icon">🔩</div><p>등록된 부품이 없습니다</p></div>
+    </div>
+  </div>
+
+  <!-- 코너 무게 측정 -->
+  <div class="card mt-6">
+    <div class="card-title"><span class="dot"></span>코너 무게 측정 (Corner Weight)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:12px">각 코너 무게 입력 (kg)</div>
+        <div class="cw-grid">
+          <div class="cw-input-wrap">
+            <label>FL (앞 좌)</label>
+            <input type="number" class="form-control" id="cw-fl" placeholder="0.0" step="0.1" oninput="calcCornerWeights()">
+          </div>
+          <div class="cw-input-wrap">
+            <label>FR (앞 우)</label>
+            <input type="number" class="form-control" id="cw-fr" placeholder="0.0" step="0.1" oninput="calcCornerWeights()">
+          </div>
+          <div class="cw-input-wrap">
+            <label>RL (뒤 좌)</label>
+            <input type="number" class="form-control" id="cw-rl" placeholder="0.0" step="0.1" oninput="calcCornerWeights()">
+          </div>
+          <div class="cw-input-wrap">
+            <label>RR (뒤 우)</label>
+            <input type="number" class="form-control" id="cw-rr" placeholder="0.0" step="0.1" oninput="calcCornerWeights()">
+          </div>
+        </div>
+        <button class="btn btn-primary mt-4" onclick="saveCornerWeights()">저장</button>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#666;margin-bottom:12px">중량 배분 자동 계산</div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:14px;margin-bottom:10px;text-align:center">
+          <div style="font-size:11px;color:#666;margin-bottom:4px">총 중량</div>
+          <div style="font-size:22px;font-weight:700;color:#ffaa00" id="cw-total">—</div>
+        </div>
+        <div class="cw-balance">
+          <div class="cw-balance-item">
+            <div class="cw-lbl">전방 배분</div>
+            <div class="cw-val" id="cw-front-pct">—</div>
+          </div>
+          <div class="cw-balance-item">
+            <div class="cw-lbl">후방 배분</div>
+            <div class="cw-val" id="cw-rear-pct">—</div>
+          </div>
+          <div class="cw-balance-item">
+            <div class="cw-lbl">좌측 배분</div>
+            <div class="cw-val" id="cw-left-pct">—</div>
+          </div>
+          <div class="cw-balance-item">
+            <div class="cw-lbl">우측 배분</div>
+            <div class="cw-val" id="cw-right-pct">—</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

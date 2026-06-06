@@ -266,34 +266,100 @@ function buildInspection() {
       </div>
       <div class="insp-items">
         ${cat.items.map(it => `
-          <div class="insp-item" id="row-${it.id}">
-            <div class="insp-item-name">${it.name}</div>
-            <div class="insp-item-ref">${it.ref}</div>
-            <div class="insp-controls">
-              <button class="insp-btn pass" data-id="${it.id}" data-state="pass">✓ 통과</button>
-              <button class="insp-btn fail" data-id="${it.id}" data-state="fail">✗ 미통과</button>
-              <button class="insp-btn pending" data-id="${it.id}" data-state="pending">? 확인중</button>
+          <div class="insp-item-wrap" id="wrap-${it.id}">
+            <div class="insp-item" id="row-${it.id}">
+              <div class="insp-item-name">${it.name}</div>
+              <div class="insp-item-ref">${it.ref}</div>
+              <div class="insp-controls">
+                <button class="insp-btn pass" data-id="${it.id}" data-state="pass">✓ 통과</button>
+                <button class="insp-btn fail" data-id="${it.id}" data-state="fail">✗ 미통과</button>
+                <button class="insp-btn pending" data-id="${it.id}" data-state="pending">? 확인중</button>
+                <button class="insp-btn insp-meta-btn" data-id="${it.id}" title="상세 메모" onclick="toggleInspMeta('${it.id}')">📋</button>
+              </div>
+            </div>
+            <div class="insp-meta-panel" id="meta-${it.id}" style="display:none">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:10px">
+                <div>
+                  <div class="insp-meta-label">중요도</div>
+                  <select class="form-control" style="padding:6px 10px;font-size:12px" onchange="saveInspMeta('${it.id}','priority',this.value)">
+                    <option value="보통">보통</option>
+                    <option value="높음">🔴 높음</option>
+                    <option value="낮음">🔵 낮음</option>
+                  </select>
+                </div>
+                <div>
+                  <div class="insp-meta-label">담당자</div>
+                  <input type="text" class="form-control" style="padding:6px 10px;font-size:12px" placeholder="이름" id="meta-assignee-${it.id}" onchange="saveInspMeta('${it.id}','assignee',this.value)">
+                </div>
+                <div>
+                  <div class="insp-meta-label">확인 날짜</div>
+                  <input type="date" class="form-control" style="padding:6px 10px;font-size:12px" id="meta-checkdate-${it.id}" onchange="saveInspMeta('${it.id}','checkDate',this.value)">
+                </div>
+                <div>
+                  <div class="insp-meta-label">수정 기한</div>
+                  <input type="date" class="form-control" style="padding:6px 10px;font-size:12px" id="meta-deadline-${it.id}" onchange="saveInspMeta('${it.id}','deadline',this.value)">
+                </div>
+              </div>
+              <div>
+                <div class="insp-meta-label">불합격 원인 메모</div>
+                <textarea class="form-control" rows="2" style="padding:6px 10px;font-size:12px" placeholder="원인 및 수정 내용..." id="meta-reason-${it.id}" onchange="saveInspMeta('${it.id}','failReason',this.value)"></textarea>
+              </div>
             </div>
           </div>
         `).join('')}
       </div>
     `;
     div.querySelector('.insp-cat-header').addEventListener('click', function() { toggleCat(this); });
-    div.querySelectorAll('.insp-btn').forEach(function(btn) {
+    div.querySelectorAll('.insp-btn[data-state]').forEach(function(btn) {
       btn.addEventListener('click', function() { setInsp(this.dataset.id, this.dataset.state, this); });
     });
     cont.appendChild(div);
   });
   Object.entries(S.inspection).forEach(([id, state]) => {
-    const btns = document.querySelectorAll(`#row-${id} .insp-btn`);
-    btns.forEach(b => b.classList.remove('active'));
-    const target = document.querySelector(`#row-${id} .insp-btn.${state}`);
+    const row = document.getElementById('row-' + id);
+    if (!row) return;
+    row.querySelectorAll('.insp-btn[data-state]').forEach(b => b.classList.remove('active'));
+    const target = row.querySelector('.insp-btn.' + state);
     if (target) {
       target.classList.add('active');
-      if (state === 'fail') document.getElementById('row-' + id)?.classList.add('fail');
+      if (state === 'fail') row.classList.add('fail');
+    }
+    if (state === 'fail' || state === 'pending') {
+      const panel = document.getElementById('meta-' + id);
+      if (panel) panel.style.display = '';
     }
   });
+  Object.entries(S.inspectionMeta || {}).forEach(([id, meta]) => {
+    restoreInspMeta(id, meta);
+  });
   updateInspStats();
+}
+
+function toggleInspMeta(id) {
+  const panel = document.getElementById('meta-' + id);
+  if (panel) panel.style.display = panel.style.display === 'none' ? '' : 'none';
+}
+
+function saveInspMeta(id, field, val) {
+  if (!S.inspectionMeta) S.inspectionMeta = {};
+  if (!S.inspectionMeta[id]) S.inspectionMeta[id] = {};
+  S.inspectionMeta[id][field] = val;
+  save('inspectionMeta');
+  updateInspStats();
+}
+
+function restoreInspMeta(id, meta) {
+  if (!meta) return;
+  const prioritySel = document.querySelector(`#meta-${id} select`);
+  if (prioritySel && meta.priority) prioritySel.value = meta.priority;
+  const assigneeEl = document.getElementById('meta-assignee-' + id);
+  if (assigneeEl && meta.assignee) assigneeEl.value = meta.assignee;
+  const checkEl = document.getElementById('meta-checkdate-' + id);
+  if (checkEl && meta.checkDate) checkEl.value = meta.checkDate;
+  const deadlineEl = document.getElementById('meta-deadline-' + id);
+  if (deadlineEl && meta.deadline) deadlineEl.value = meta.deadline;
+  const reasonEl = document.getElementById('meta-reason-' + id);
+  if (reasonEl && meta.failReason) reasonEl.value = meta.failReason;
 }
 
 function slugify(s) { return s.replace(/\s/g,'_').replace(/[^a-zA-Z0-9_]/g,''); }
@@ -306,7 +372,7 @@ function toggleCat(header) {
 
 function setInsp(id, state, btn) {
   const row = document.getElementById('row-' + id);
-  row.querySelectorAll('.insp-btn').forEach(b => b.classList.remove('active'));
+  row.querySelectorAll('.insp-btn[data-state]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   row.classList.remove('fail');
   if (state === 'fail') row.classList.add('fail');
@@ -314,8 +380,14 @@ function setInsp(id, state, btn) {
     delete S.inspection[id];
     btn.classList.remove('active');
     row.classList.remove('fail');
+    const panel = document.getElementById('meta-' + id);
+    if (panel) panel.style.display = 'none';
   } else {
     S.inspection[id] = state;
+    if (state === 'fail' || state === 'pending') {
+      const panel = document.getElementById('meta-' + id);
+      if (panel) panel.style.display = '';
+    }
   }
   save('inspection');
   updateInspStats();
@@ -387,11 +459,22 @@ function renderReport() {
     }));
     issuesEl.innerHTML = issues.length === 0
       ? '<div style="color:#00cc66;font-size:13px;text-align:center;padding:16px">✓ 미통과/확인중 항목 없음</div>'
-      : issues.map(it => `<div class="issue-item">
-          <span class="issue-badge" style="background:${it.state==='fail'?'rgba(255,0,0,0.15)':'rgba(255,170,0,0.15)'};color:${it.state==='fail'?'#ff4444':'#ffaa00'}">${it.state==='fail'?'미통과':'확인중'}</span>
-          <span style="flex:1;color:#ddd;font-size:12px">${it.name}</span>
-          <span style="color:#555;font-size:10px;font-family:monospace">${it.ref}</span>
-        </div>`).join('');
+      : issues.map(it => {
+          const meta = (S.inspectionMeta || {})[it.id] || {};
+          const priColor = meta.priority === '높음' ? '#ff4444' : meta.priority === '낮음' ? '#0088ff' : '#ffaa00';
+          const priLabel = meta.priority || '보통';
+          const assignee = meta.assignee || '';
+          const deadline = meta.deadline || '';
+          const noAssignee = !assignee && it.state !== 'pass';
+          return `<div class="issue-item">
+            <span class="issue-badge" style="background:${it.state==='fail'?'rgba(255,0,0,0.15)':'rgba(255,170,0,0.15)'};color:${it.state==='fail'?'#ff4444':'#ffaa00'}">${it.state==='fail'?'미통과':'확인중'}</span>
+            <span class="issue-badge" style="background:${priColor}22;color:${priColor};margin-left:0">${priLabel}</span>
+            <span style="flex:1;color:#ddd;font-size:12px">${it.name}</span>
+            <span style="font-size:11px;color:${assignee?'#aaa':'#ff4444'}">${assignee || '⚠ 담당자 미지정'}</span>
+            ${deadline ? `<span style="font-size:10px;color:#888;margin-left:6px">~${deadline}</span>` : ''}
+            <span style="color:#555;font-size:10px;font-family:monospace;margin-left:6px">${it.ref}</span>
+          </div>`;
+        }).join('');
   }
 }
 
