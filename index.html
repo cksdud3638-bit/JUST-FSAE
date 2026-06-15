@@ -46,6 +46,7 @@
   <button class="tab-btn" data-tab="feedback"><span class="tab-number">5</span>드라이버 피드백</button>
   <button class="tab-btn" data-tab="budget"><span class="tab-number">6</span>예산 관리</button>
   <button class="tab-btn" data-tab="parts"><span class="tab-number">7</span>부품 무게/비용</button>
+  <button class="tab-btn" data-tab="damper"><span class="tab-number">8</span>댐퍼 세팅 계산기</button>
 </nav>
 
 <!-- MAIN CONTENT -->
@@ -1197,6 +1198,347 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════
+     TAB 8: DAMPER SETUP CALCULATOR
+═══════════════════════════════════════════════ -->
+<div id="tab-damper" class="tab-pane">
+  <div class="section-header">
+    <div>
+      <div class="section-title">댐퍼 세팅 계산기</div>
+      <div class="section-sub">임계 감쇠비 · 롤 강성 배분 · 댐퍼 속도 · 클릭 수 추천</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-ghost" onclick="resetDamperDefaults()" style="font-size:12px">기본값 복원</button>
+      <button id="dm-copy-btn" class="btn-secondary" onclick="copyDamperResult()" style="font-size:13px">결과 복사</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start">
+
+    <!-- ── LEFT: INPUT PANEL ── -->
+    <div class="card" style="padding:20px">
+      <div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:16px;letter-spacing:0.05em">차량 파라미터 입력</div>
+
+      <!-- Corner Weights -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">코너별 중량 (kg)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">FL</label>
+            <input id="dm-fl" type="number" class="form-control dm-input" step="0.1" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">FR</label>
+            <input id="dm-fr" type="number" class="form-control dm-input" step="0.1" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">RL</label>
+            <input id="dm-rl" type="number" class="form-control dm-input" step="0.1" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">RR</label>
+            <input id="dm-rr" type="number" class="form-control dm-input" step="0.1" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Spring Rates -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">스프링 레이트 (N/mm)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">전 (Front)</label>
+            <input id="dm-k_front" type="number" class="form-control dm-input" step="0.5" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">후 (Rear)</label>
+            <input id="dm-k_rear" type="number" class="form-control dm-input" step="0.5" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Ride Height -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">라이드 하이트 (mm)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">전 (Front)</label>
+            <input id="dm-rh_front" type="number" class="form-control dm-input" step="1" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">후 (Rear)</label>
+            <input id="dm-rh_rear" type="number" class="form-control dm-input" step="1" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Motion Ratio -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">모션 레이시오 (MR)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">전 (Front)</label>
+            <input id="dm-mr_front" type="number" class="form-control dm-input" step="0.01" min="0.1" max="2" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">후 (Rear)</label>
+            <input id="dm-mr_rear" type="number" class="form-control dm-input" step="0.01" min="0.1" max="2" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Damper Stroke -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">댐퍼 스트로크 범위 (mm)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">전 (Front)</label>
+            <input id="dm-stroke_front" type="number" class="form-control dm-input" step="5" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">후 (Rear)</label>
+            <input id="dm-stroke_rear" type="number" class="form-control dm-input" step="5" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Clicks -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">댐퍼 총 클릭 수</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">전 (Front)</label>
+            <input id="dm-clicks_front" type="number" class="form-control dm-input" step="1" min="1" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">후 (Rear)</label>
+            <input id="dm-clicks_rear" type="number" class="form-control dm-input" step="1" min="1" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Track Width -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">트랙 (mm)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">전 (Front)</label>
+            <input id="dm-track_front" type="number" class="form-control dm-input" step="10" style="font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;display:block;margin-bottom:3px">후 (Rear)</label>
+            <input id="dm-track_rear" type="number" class="form-control dm-input" step="10" style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tire Radius -->
+      <div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em">타이어 반경 (mm)</div>
+        <input id="dm-tire_radius" type="number" class="form-control dm-input" step="1" style="font-size:13px;width:100%">
+      </div>
+    </div>
+
+    <!-- ── RIGHT: RESULT CARDS ── -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Card 1: Critical Damping -->
+      <div class="card" style="padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,0,0,0.15);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--red)">1</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff">임계 감쇠비 계산</div>
+            <div style="font-size:11px;color:#555">C_crit = 2√(K_wheel × M_sprung)</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <!-- Front -->
+          <div style="background:var(--card2);border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">전 (Front)</div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:10px;color:#555;margin-bottom:2px">K_wheel</div>
+              <div style="font-size:15px;font-weight:700;color:#fff"><span id="dm-kw-f">—</span> <span style="font-size:11px;color:#555;font-weight:400">N/mm</span></div>
+            </div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;color:#555;margin-bottom:2px">C_crit</div>
+              <div style="font-size:18px;font-weight:800;color:var(--red)"><span id="dm-cc-f">—</span> <span style="font-size:11px;color:#555;font-weight:400">N·s/mm</span></div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:10px">
+              <div style="margin-bottom:6px">
+                <div style="font-size:10px;color:#888;margin-bottom:2px">바운스 목표 (ζ=0.65~0.70)</div>
+                <div style="font-size:12px;font-weight:600;color:#4da6ff"><span id="dm-cb-f">—</span> N·s/mm</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#888;margin-bottom:2px">리바운드 목표 (ζ=0.55~0.65)</div>
+                <div style="font-size:12px;font-weight:600;color:#66cc88"><span id="dm-cr-f">—</span> N·s/mm</div>
+              </div>
+            </div>
+          </div>
+          <!-- Rear -->
+          <div style="background:var(--card2);border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">후 (Rear)</div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:10px;color:#555;margin-bottom:2px">K_wheel</div>
+              <div style="font-size:15px;font-weight:700;color:#fff"><span id="dm-kw-r">—</span> <span style="font-size:11px;color:#555;font-weight:400">N/mm</span></div>
+            </div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:10px;color:#555;margin-bottom:2px">C_crit</div>
+              <div style="font-size:18px;font-weight:800;color:var(--red)"><span id="dm-cc-r">—</span> <span style="font-size:11px;color:#555;font-weight:400">N·s/mm</span></div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:10px">
+              <div style="margin-bottom:6px">
+                <div style="font-size:10px;color:#888;margin-bottom:2px">바운스 목표 (ζ=0.65~0.70)</div>
+                <div style="font-size:12px;font-weight:600;color:#4da6ff"><span id="dm-cb-r">—</span> N·s/mm</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:#888;margin-bottom:2px">리바운드 목표 (ζ=0.55~0.65)</div>
+                <div style="font-size:12px;font-weight:600;color:#66cc88"><span id="dm-cr-r">—</span> N·s/mm</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Roll Stiffness Distribution -->
+      <div class="card" style="padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,0,0,0.15);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--red)">2</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff">전/후 롤 강성 배분</div>
+            <div style="font-size:11px;color:#555">K_φ = K_wheel × (Track/2)²  |  권장: 전 60~70%</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+          <div style="background:var(--card2);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:#555;margin-bottom:4px">전 K_φ (×10⁶ N·mm)</div>
+            <div style="font-size:16px;font-weight:700;color:#4da6ff" id="dm-kphi-f">—</div>
+          </div>
+          <div style="background:var(--card2);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:10px;color:#555;margin-bottom:4px">후 K_φ (×10⁶ N·mm)</div>
+            <div style="font-size:16px;font-weight:700;color:#66cc88" id="dm-kphi-r">—</div>
+          </div>
+          <div style="background:rgba(255,0,0,0.08);border-radius:8px;padding:12px;text-align:center;border:1px solid rgba(255,0,0,0.2)">
+            <div style="font-size:10px;color:#888;margin-bottom:4px">전 배분 비율</div>
+            <div style="font-size:20px;font-weight:800;color:var(--red)"><span id="dm-roll-f">—</span><span style="font-size:13px;font-weight:400;color:#555">%</span></div>
+            <div style="font-size:11px;color:#555">후 <span id="dm-roll-r">—</span>%</div>
+          </div>
+        </div>
+        <!-- Roll bar visual -->
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-bottom:4px">
+            <span>전 (Front)</span><span>후 (Rear)</span>
+          </div>
+          <div style="height:8px;background:var(--card2);border-radius:4px;overflow:hidden;position:relative">
+            <div id="dm-roll-bar-f" style="height:100%;background:linear-gradient(90deg,var(--red),#ff6644);border-radius:4px;transition:width 0.3s;width:65%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#333;margin-top:3px">
+            <span style="color:#555">0%</span>
+            <span style="color:#888">60%</span>
+            <span style="color:#888">70%</span>
+            <span style="color:#555">100%</span>
+          </div>
+        </div>
+        <div id="dm-roll-warn" class="dm-warn dm-warn-green">✓ FSAE 권장 범위 내 (전 60~70%)</div>
+      </div>
+
+      <!-- Card 3: Damper Velocity -->
+      <div class="card" style="padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,0,0,0.15);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--red)">3</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff">모션 레이시오 반영 댐퍼 속도</div>
+            <div style="font-size:11px;color:#555">V_damper = V_wheel × MR  |  일반 주행: 휠 25~75 mm/s</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:var(--card2);border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">전 (Front)</div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:10px;color:#555;margin-bottom:2px">일반 주행 범위</div>
+              <div style="font-size:15px;font-weight:700;color:#fff"><span id="dm-vd-f">—</span> <span style="font-size:11px;color:#555">mm/s</span></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:rgba(0,136,255,0.1);border:1px solid rgba(0,136,255,0.25);border-radius:5px;padding:7px;text-align:center">
+                <div style="font-size:9px;color:#0088ff;margin-bottom:2px">저속 영역</div>
+                <div style="font-size:11px;color:#4da6ff">&lt; <span id="dm-vlim-f">—</span> mm/s</div>
+              </div>
+              <div style="flex:1;background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.25);border-radius:5px;padding:7px;text-align:center">
+                <div style="font-size:9px;color:#ffaa00;margin-bottom:2px">고속 영역</div>
+                <div style="font-size:11px;color:#ffcc44">≥ <span id="dm-vlim-f2">—</span> mm/s</div>
+              </div>
+            </div>
+          </div>
+          <div style="background:var(--card2);border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">후 (Rear)</div>
+            <div style="margin-bottom:8px">
+              <div style="font-size:10px;color:#555;margin-bottom:2px">일반 주행 범위</div>
+              <div style="font-size:15px;font-weight:700;color:#fff"><span id="dm-vd-r">—</span> <span style="font-size:11px;color:#555">mm/s</span></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:rgba(0,136,255,0.1);border:1px solid rgba(0,136,255,0.25);border-radius:5px;padding:7px;text-align:center">
+                <div style="font-size:9px;color:#0088ff;margin-bottom:2px">저속 영역</div>
+                <div style="font-size:11px;color:#4da6ff">&lt; <span id="dm-vlim-r">—</span> mm/s</div>
+              </div>
+              <div style="flex:1;background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.25);border-radius:5px;padding:7px;text-align:center">
+                <div style="font-size:9px;color:#ffaa00;margin-bottom:2px">고속 영역</div>
+                <div style="font-size:11px;color:#ffcc44">≥ <span id="dm-vlim-r2">—</span> mm/s</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Click Recommendations -->
+      <div class="card" style="padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,0,0,0.15);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--red)">4</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff">바운스/리바운드 클릭 수 추천</div>
+            <div style="font-size:11px;color:#555">바운스 40~45% · 리바운드 55~60%</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <!-- Front clicks -->
+          <div style="background:var(--card2);border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em">전 (Front)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="background:rgba(0,136,255,0.08);border:1px solid rgba(0,136,255,0.2);border-radius:6px;padding:10px;text-align:center">
+                <div style="font-size:10px;color:#0088ff;margin-bottom:4px">바운스 (40~45%)</div>
+                <div style="font-size:22px;font-weight:800;color:#4da6ff" id="dm-bc-f">—</div>
+                <div style="font-size:10px;color:#555;margin-top:2px">클릭</div>
+              </div>
+              <div style="background:rgba(0,204,102,0.08);border:1px solid rgba(0,204,102,0.2);border-radius:6px;padding:10px;text-align:center">
+                <div style="font-size:10px;color:#00cc66;margin-bottom:4px">리바운드 (55~60%)</div>
+                <div style="font-size:22px;font-weight:800;color:#66cc88" id="dm-rc-f">—</div>
+                <div style="font-size:10px;color:#555;margin-top:2px">클릭</div>
+              </div>
+            </div>
+          </div>
+          <!-- Rear clicks -->
+          <div style="background:var(--card2);border-radius:8px;padding:14px">
+            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em">후 (Rear)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="background:rgba(0,136,255,0.08);border:1px solid rgba(0,136,255,0.2);border-radius:6px;padding:10px;text-align:center">
+                <div style="font-size:10px;color:#0088ff;margin-bottom:4px">바운스 (40~45%)</div>
+                <div style="font-size:22px;font-weight:800;color:#4da6ff" id="dm-bc-r">—</div>
+                <div style="font-size:10px;color:#555;margin-top:2px">클릭</div>
+              </div>
+              <div style="background:rgba(0,204,102,0.08);border:1px solid rgba(0,204,102,0.2);border-radius:6px;padding:10px;text-align:center">
+                <div style="font-size:10px;color:#00cc66;margin-bottom:4px">리바운드 (55~60%)</div>
+                <div style="font-size:22px;font-weight:800;color:#66cc88" id="dm-rc-r">—</div>
+                <div style="font-size:10px;color:#555;margin-top:2px">클릭</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Balance guide -->
+        <div id="dm-balance-guide" style="background:rgba(0,204,102,0.08);border:1px solid var(--green);border-radius:8px;padding:12px;font-size:12px;color:var(--green);line-height:1.5"></div>
+      </div>
+
+    </div><!-- end right -->
+  </div><!-- end grid -->
+</div><!-- end tab-damper -->
+
 </main>
 <script src="js/storage.js"></script>
 <script src="js/inspection.js"></script>
@@ -1206,6 +1548,7 @@
 <script src="js/feedback.js"></script>
 <script src="js/budget.js"></script>
 <script src="js/weight.js"></script>
+<script src="js/damper.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
