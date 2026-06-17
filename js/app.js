@@ -123,7 +123,8 @@ function switchTab(name, btn) {
   if (name === 'testlog')  { renderTestLogs(); }
   if (name === 'budget')   { renderBudget(); }
   if (name === 'parts')    { renderParts(); updateSliderFill(); updateWheelbaseMarkers(); }
-  if (name === 'damper')   { if (typeof initDamper === 'function') initDamper(); }
+  if (name === 'damper')   { if (typeof initDamper   === 'function') initDamper(); }
+  if (name === 'radiator') { if (typeof calcRadiator === 'function') calcRadiator(); }
 }
 
 function switchTabByName(name) {
