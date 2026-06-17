@@ -1694,92 +1694,112 @@
 
       <!-- 라디에이터 Input -->
       <table class="rad-table">
-        <thead><tr><th colspan="2">🔧 라디에이터 Input</th></tr></thead>
+        <thead><tr><th colspan="3">🔧 라디에이터 Input</th></tr></thead>
         <tbody>
           <tr>
-            <td class="rad-lbl">라디에이터 높이 (m)</td>
-            <td><input class="rad-inp" id="rad-H" type="number" value="0.29" step="0.01" oninput="radAutoCalc()"></td>
+            <td class="rad-lbl">코어 가로</td>
+            <td><input class="rad-inp" id="rad-W" type="number" value="160" step="1" min="1" oninput="radAutoCalc()"></td>
+            <td class="rad-unit">mm</td>
           </tr>
           <tr>
-            <td class="rad-lbl">라디에이터 두께 (m)</td>
-            <td><input class="rad-inp" id="rad-T" type="number" value="0.033" step="0.001" oninput="radAutoCalc()"></td>
+            <td class="rad-lbl">코어 세로</td>
+            <td><input class="rad-inp" id="rad-H" type="number" value="290" step="1" min="1" oninput="radAutoCalc()"></td>
+            <td class="rad-unit">mm</td>
+          </tr>
+          <tr>
+            <td class="rad-lbl">코어 두께</td>
+            <td><input class="rad-inp" id="rad-T" type="number" value="33" step="0.5" min="1" oninput="radAutoCalc()"></td>
+            <td class="rad-unit">mm</td>
           </tr>
           <tr>
             <td class="rad-lbl">관 개수</td>
             <td><input class="rad-inp" id="rad-N" type="number" value="17" step="1" min="1" oninput="radAutoCalc()"></td>
+            <td class="rad-unit">개</td>
           </tr>
           <tr>
-            <td class="rad-lbl">관 두께 (m)</td>
-            <td><input class="rad-inp" id="rad-t" type="number" value="0.002" step="0.0005" oninput="radAutoCalc()"></td>
+            <td class="rad-lbl">관 두께</td>
+            <td><input class="rad-inp" id="rad-t" type="number" value="2" step="0.1" min="0.1" oninput="radAutoCalc()"></td>
+            <td class="rad-unit">mm</td>
           </tr>
           <tr>
-            <td class="rad-lbl">
-              핀 비율 (핀높이/핀피치)
-              <span class="rad-auto-badge">자동</span>
-            </td>
-            <td><input class="rad-inp" id="rad-fr" type="number" value="0.787" step="0.001" oninput="calcRadiator()"></td>
+            <td class="rad-lbl">FPI (핀/인치)</td>
+            <td><input class="rad-inp" id="rad-fpi" type="number" value="8" step="1" min="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">fins/in</td>
           </tr>
           <tr>
-            <td class="rad-lbl">핀 높이 (m)</td>
-            <td><input class="rad-inp" id="rad-fh" type="number" value="0.0025" step="0.0001" oninput="radAutoCalc()"></td>
+            <td class="rad-lbl">핀 높이</td>
+            <td><input class="rad-inp" id="rad-fh" type="number" value="2.5" step="0.1" min="0.1" oninput="radAutoCalc()"></td>
+            <td class="rad-unit">mm</td>
           </tr>
           <tr>
             <td class="rad-lbl">라디에이터 개수</td>
             <td><input class="rad-inp" id="rad-nr" type="number" value="1" step="1" min="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">개</td>
           </tr>
         </tbody>
       </table>
 
       <!-- 유체 Input -->
       <table class="rad-table" style="margin-top:12px">
-        <thead><tr><th colspan="2">💧 유체 Input</th></tr></thead>
+        <thead><tr><th colspan="3">💧 유체 Input</th></tr></thead>
         <tbody>
           <tr>
-            <td class="rad-lbl">열전달계수 U (W/m²·K)</td>
+            <td class="rad-lbl">열전달계수 U</td>
             <td><input class="rad-inp" id="rad-U" type="number" value="60" step="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">W/m²·K</td>
           </tr>
           <tr>
-            <td class="rad-lbl">공기 비열 (J/kg·K)</td>
+            <td class="rad-lbl">공기 비열</td>
             <td><input class="rad-inp" id="rad-cpa" type="number" value="1007" step="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">J/kg·K</td>
           </tr>
           <tr>
-            <td class="rad-lbl">냉각수 비열 (J/kg·K)</td>
+            <td class="rad-lbl">냉각수 비열</td>
             <td><input class="rad-inp" id="rad-cpw" type="number" value="4182" step="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">J/kg·K</td>
           </tr>
           <tr>
-            <td class="rad-lbl">공기 밀도 (kg/m³)</td>
+            <td class="rad-lbl">공기 밀도</td>
             <td><input class="rad-inp" id="rad-rha" type="number" value="1.127" step="0.001" oninput="calcRadiator()"></td>
+            <td class="rad-unit">kg/m³</td>
           </tr>
           <tr>
-            <td class="rad-lbl">냉각수 밀도 (kg/m³)</td>
+            <td class="rad-lbl">냉각수 밀도</td>
             <td><input class="rad-inp" id="rad-rhw" type="number" value="1000" step="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">kg/m³</td>
           </tr>
           <tr>
-            <td class="rad-lbl">공기 입구 온도 (℃)</td>
+            <td class="rad-lbl">공기 입구 온도</td>
             <td><input class="rad-inp" id="rad-Ta" type="number" value="35" step="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">℃</td>
           </tr>
           <tr>
-            <td class="rad-lbl">냉각수 입구 온도 (℃)</td>
+            <td class="rad-lbl">냉각수 입구 온도</td>
             <td><input class="rad-inp" id="rad-Tw" type="number" value="100" step="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">℃</td>
           </tr>
           <tr>
-            <td class="rad-lbl">냉각수 체적 유량 (m³/s)</td>
-            <td><input class="rad-inp" id="rad-Vw" type="number" value="0.001" step="0.0001" oninput="calcRadiator()"></td>
+            <td class="rad-lbl">냉각수 유량</td>
+            <td><input class="rad-inp" id="rad-Vw" type="number" value="60" step="1" min="1" oninput="calcRadiator()"></td>
+            <td class="rad-unit">L/min<br><span style="font-size:10px;color:#555">÷60000→m³/s</span></td>
           </tr>
           <tr>
             <td class="rad-lbl">
-              공기 체적 유량 (m³/s)
+              공기 체적 유량
               <span class="rad-auto-badge">자동</span>
+              <div style="font-size:10px;color:#555;margin-top:2px">= A_front × v(m/s)</div>
             </td>
-            <td><input class="rad-inp" id="rad-Va" type="number" value="0.1595" step="0.001" oninput="calcRadiator()"></td>
+            <td><input class="rad-inp" id="rad-Va" type="number" value="0.7740" step="0.001" oninput="calcRadiator()"></td>
+            <td class="rad-unit">m³/s</td>
           </tr>
           <tr>
-            <td class="rad-lbl">차량 속도 (km/h)</td>
+            <td class="rad-lbl">차량 속도</td>
             <td>
               <input class="rad-inp" id="rad-v" type="number" value="60" step="1" oninput="radAutoCalc()">
               <input type="range" id="rad-v-slider" min="20" max="120" step="1" value="60"
                 class="rad-slider" oninput="document.getElementById('rad-v').value=this.value; radAutoCalc()">
             </td>
+            <td class="rad-unit">km/h</td>
           </tr>
         </tbody>
       </table>
@@ -1819,12 +1839,28 @@
           </tr>
         </thead>
         <tbody>
-          <tr class="rad-section-row"><td colspan="3">━ 면적 및 열용량률</td></tr>
+          <tr class="rad-section-row"><td colspan="3">━ 면적 계산</td></tr>
           <tr>
-            <td class="rad-rl">총 면적 A (m²)</td>
-            <td class="rad-rv" id="rs-A-s">—</td>
-            <td class="rad-rv" id="rs-A-d">—</td>
+            <td class="rad-rl">코어 정면 면적 A_front (m²)</td>
+            <td class="rad-rv" id="rs-Af-s">—</td>
+            <td class="rad-rv" id="rs-Af-d">—</td>
           </tr>
+          <tr>
+            <td class="rad-rl">핀 표면적 A_fin (m²)</td>
+            <td class="rad-rv" id="rs-Afin-s">—</td>
+            <td class="rad-rv" id="rs-Afin-d">—</td>
+          </tr>
+          <tr>
+            <td class="rad-rl">튜브 외부 면적 A_tube (m²)</td>
+            <td class="rad-rv" id="rs-Atube-s">—</td>
+            <td class="rad-rv" id="rs-Atube-d">—</td>
+          </tr>
+          <tr>
+            <td class="rad-rl"><strong>총 열교환 면적 A_total (m²)</strong></td>
+            <td class="rad-rv rad-rv-em" id="rs-A-s">—</td>
+            <td class="rad-rv rad-rv-em" id="rs-A-d">—</td>
+          </tr>
+          <tr class="rad-section-row"><td colspan="3">━ 열용량률</td></tr>
           <tr>
             <td class="rad-rl">공기 열용량률 C_air (W/K)</td>
             <td class="rad-rv" id="rs-Ca-s">—</td>
@@ -1884,11 +1920,15 @@
       <div class="rad-formula-box" style="margin-top:14px">
         <div class="rad-formula-title">계산식 참조</div>
         <div class="rad-formula-list">
-          <div>A = H × T × N<sub>tube</sub> × 핀비율 × h<sub>fin</sub> × N<sub>rad</sub></div>
-          <div>C = ρ × V̇ × c<sub>p</sub> &nbsp;|&nbsp; Q<sub>max</sub> = C<sub>min</sub> × ΔT<sub>max</sub></div>
-          <div>NTU = U × A / C<sub>min</sub> &nbsp;|&nbsp; R = C<sub>min</sub> / C<sub>max</sub></div>
+          <div>A_front = W × H &nbsp;[mm²→m²]</div>
+          <div>A_fin = 2 × W × H × (FPI/25.4) × T &nbsp;[mm²→m²]</div>
+          <div>A_tube = N × 2 × (W + h<sub>fin</sub>) × H &nbsp;[mm²→m²]</div>
+          <div>A_total = A_fin + A_tube</div>
+          <div>Q̇<sub>air</sub> = A_front × v<sub>vehicle</sub>(m/s) &nbsp;|&nbsp; V̇<sub>water</sub>[L/min]÷60000=m³/s</div>
+          <div>C = ρ × V̇ × c<sub>p</sub> &nbsp;|&nbsp; Q<sub>max</sub> = C<sub>min</sub> × (T<sub>w,in</sub>−T<sub>a,in</sub>)</div>
+          <div>NTU = U × A_total / C<sub>min</sub> &nbsp;|&nbsp; R = C<sub>min</sub> / C<sub>max</sub></div>
           <div class="rad-formula-sp">Single: ε = (1 − e<sup>−NTU(1−R)</sup>) / (1 − R·e<sup>−NTU(1−R)</sup>)</div>
-          <div class="rad-formula-dp">Double: ε = 2 / (1 + R + √(1+R²)·coth(NTU√(1+R²)/2))</div>
+          <div class="rad-formula-dp">Double: ε = 2 / (1 + R + √(1+R²)·coth(NTU·√(1+R²)/2))</div>
           <div>Q = ε × Q<sub>max</sub></div>
         </div>
       </div>
