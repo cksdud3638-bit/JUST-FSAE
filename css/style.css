@@ -455,3 +455,30 @@ textarea.form-control{resize:vertical;min-height:80px}
 .parts-edit-actions{display:flex;gap:8px;justify-content:flex-end}
 .parts-edit-save{background:var(--red)!important;color:#fff!important;border:none!important;font-weight:700!important}
 .parts-edit-save:hover{opacity:0.85}
+
+/* ===== TAB 9: RADIATOR NTU CALCULATOR ===== */
+.rad-result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rad-stat{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:14px 12px;text-align:center;transition:transform .18s,box-shadow .18s}
+.rad-stat:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(255,0,0,0.08)}
+.rad-stat-label{font-size:10px;color:var(--gray);font-weight:600;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px}
+.rad-stat-value{font-size:20px;font-weight:800;color:var(--white);line-height:1.1}
+.rad-stat-unit{font-size:10px;color:#555;margin-top:3px}
+.rad-stat-highlight{border-color:rgba(255,0,0,0.35);background:linear-gradient(135deg,rgba(255,0,0,0.07),rgba(255,0,0,0.02))}
+.rad-stat-highlight .rad-stat-value{color:var(--red)}
+.rad-status-bar{border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;border:1px solid;transition:all .3s}
+.rad-ok{background:rgba(0,204,102,0.07);border-color:rgba(0,204,102,0.3)}
+.rad-ng{background:rgba(255,0,0,0.07);border-color:rgba(255,0,0,0.35);box-shadow:0 0 16px rgba(255,0,0,0.07)}
+.rad-status-icon{font-size:26px;flex-shrink:0}
+.rad-status-main{font-size:15px;font-weight:700}
+.rad-status-sub{font-size:11px;color:var(--gray);margin-top:2px}
+.rad-ok .rad-status-main{color:var(--green)}
+.rad-ng .rad-status-main{color:var(--red)}
+.rad-pass-toggle{display:flex;gap:8px;margin-top:6px}
+.rad-pass-toggle label{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;border:1px solid #2a2a2a;cursor:pointer;font-size:13px;color:#888;transition:all .2s;background:#1a1a1a}
+.rad-pass-toggle input[type=radio]{display:none}
+.rad-pass-toggle label:has(input:checked){border-color:var(--red);color:#fff;background:rgba(255,0,0,0.1)}
+.rad-slider-row{display:flex;align-items:center;gap:10px;margin-top:6px}
+.rad-slider{flex:1;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;background:linear-gradient(to right,var(--red) 50%,#2a2a2a 50%);outline:none;cursor:pointer}
+.rad-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--red);cursor:pointer;box-shadow:0 0 8px rgba(255,0,0,0.45);transition:transform .15s}
+.rad-slider::-webkit-slider-thumb:hover{transform:scale(1.2)}
+@media(max-width:900px){.rad-result-grid{grid-template-columns:repeat(2,1fr)}}
