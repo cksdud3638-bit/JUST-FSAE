@@ -1679,7 +1679,7 @@
   <div class="section-header" style="margin-bottom:16px">
     <div>
       <div class="section-title">라디에이터 방열량 계산기 (ε-NTU 법)</div>
-      <div class="section-sub">Single Pass / Double Pass 동시 비교 · 실시간 계산 (JUST FSAE 실측 기반)</div>
+      <div class="section-sub">교차류 양쪽 비혼합 · 직렬 2단 계산 (JUST FSAE 실측 기반)</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-secondary" onclick="printRadiator()" style="font-size:12px;padding:7px 14px">🖨 인쇄</button>
@@ -1737,7 +1737,7 @@
           </tr>
           <tr>
             <td class="rad-lbl">라디에이터 개수</td>
-            <td><input class="rad-inp" id="rad-nr" type="number" value="1" step="1" min="1" oninput="calcRadiator()"></td>
+            <td><input class="rad-inp" id="rad-nr" type="number" value="2" step="1" min="1" oninput="calcRadiator()"></td>
             <td class="rad-unit">개</td>
           </tr>
         </tbody>
@@ -1834,8 +1834,7 @@
         <thead>
           <tr>
             <th class="rad-rh-label">계산 항목 &amp; 계산식</th>
-            <th class="rad-rh-single">Single Pass</th>
-            <th class="rad-rh-double">Double Pass</th>
+            <th class="rad-rh-single" colspan="2">결과값</th>
           </tr>
         </thead>
         <tbody>
@@ -1857,7 +1856,7 @@
           <tr>
             <td class="rad-rl">
               총 핀 수
-              <div style="font-size:10px;color:#666;margin-top:2px">= (H / 핀피치) × N × nr</div>
+              <div style="font-size:10px;color:#666;margin-top:2px">= (W / 핀피치) × (N−1) × nr</div>
             </td>
             <td class="rad-rv" id="rs-nf" colspan="2">—</td>
           </tr>
@@ -1871,8 +1870,8 @@
           <tr class="rad-section-row"><td colspan="3">━ 열용량률</td></tr>
           <tr>
             <td class="rad-rl">
-              공기 체적유량 Q_air (m³/s)
-              <div style="font-size:10px;color:#666;margin-top:2px">= A_front × v[km/h÷3.6]</div>
+              공기 체적유량 Q_air 총합 (m³/s)
+              <div style="font-size:10px;color:#666;margin-top:2px">= A_front × nr × v[km/h÷3.6]</div>
             </td>
             <td class="rad-rv" id="rs-Va" colspan="2">—</td>
           </tr>
@@ -1911,44 +1910,53 @@
           </tr>
           <tr>
             <td class="rad-rl">
-              <strong>전달단위수 NTU</strong>
-              <div style="font-size:10px;color:#666;margin-top:2px">= U × A_total / C_min</div>
+              <strong>전달단위수 NTU (1개 기준)</strong>
+              <div style="font-size:10px;color:#666;margin-top:2px">= U × (A_total/nr) / C_min</div>
             </td>
             <td class="rad-rv rad-rv-em" id="rs-NTU" colspan="2">—</td>
           </tr>
-          <tr class="rad-section-row"><td colspan="3">━ 최종 결과 (Single vs Double 비교)</td></tr>
+          <tr class="rad-section-row"><td colspan="3">━ 최종 결과 (교차류 직렬 2단)</td></tr>
           <tr>
             <td class="rad-rl">
-              유용도 ε
-              <div style="font-size:10px;color:#e84040;margin-top:2px">Single: (1−e<sup>−NTU(1−R)</sup>)/(1−Re<sup>−NTU(1−R)</sup>)</div>
-              <div style="font-size:10px;color:#4488ff;margin-top:1px">Double: 2/(1+R+√(1+R²)·coth(NTU·√(1+R²)/2))</div>
+              유용도 ε (교차류 양쪽 비혼합)
+              <div style="font-size:10px;color:#e84040;margin-top:2px">= 1 − exp[(NTU<sup>0.22</sup>/R)×(exp(−R×NTU<sup>0.78</sup>)−1)]</div>
             </td>
-            <td class="rad-rv rad-rv-hi" id="rs-eps-s">—</td>
-            <td class="rad-rv rad-rv-hi" id="rs-eps-d">—</td>
+            <td class="rad-rv rad-rv-hi" id="rs-eps" colspan="2">—</td>
           </tr>
           <tr class="rad-final-row">
             <td class="rad-rl">
-              방열량 Q (kW)
-              <div style="font-size:10px;color:#666;margin-top:2px">= ε × Q_max / 1000</div>
+              1단계 방열량 Q1 (kW)
+              <div style="font-size:10px;color:#666;margin-top:2px">= ε × C_min × (T_w,in − T_a,in) / 1000</div>
             </td>
-            <td class="rad-rv rad-rv-Q" id="rs-Q-s">—</td>
-            <td class="rad-rv rad-rv-Q" id="rs-Q-d">—</td>
+            <td class="rad-rv rad-rv-Q" id="rs-Q1" colspan="2">—</td>
           </tr>
           <tr>
             <td class="rad-rl">
-              냉각수 출구 온도 (℃)
-              <div style="font-size:10px;color:#666;margin-top:2px">= T_w,in − Q / C_water</div>
+              1단계 냉각수 출구온도 T_w,mid (℃)
+              <div style="font-size:10px;color:#666;margin-top:2px">= T_w,in − Q1 / C_water</div>
             </td>
-            <td class="rad-rv" id="rs-Tw-s">—</td>
-            <td class="rad-rv" id="rs-Tw-d">—</td>
+            <td class="rad-rv" id="rs-Tw-mid" colspan="2">—</td>
+          </tr>
+          <tr class="rad-final-row">
+            <td class="rad-rl">
+              2단계 방열량 Q2 (kW)
+              <div style="font-size:10px;color:#666;margin-top:2px">= ε × C_min × (T_w,mid − T_a,in) / 1000</div>
+            </td>
+            <td class="rad-rv rad-rv-Q" id="rs-Q2" colspan="2">—</td>
           </tr>
           <tr>
             <td class="rad-rl">
-              공기 출구 온도 (℃)
-              <div style="font-size:10px;color:#666;margin-top:2px">= T_a,in + Q / C_air</div>
+              최종 냉각수 출구온도 (℃)
+              <div style="font-size:10px;color:#666;margin-top:2px">= T_w,mid − Q2 / C_water</div>
             </td>
-            <td class="rad-rv" id="rs-Ta-s">—</td>
-            <td class="rad-rv" id="rs-Ta-d">—</td>
+            <td class="rad-rv" id="rs-Tw-out" colspan="2">—</td>
+          </tr>
+          <tr class="rad-final-row">
+            <td class="rad-rl">
+              <strong>총 방열량 Q_total (kW)</strong>
+              <div style="font-size:10px;color:#666;margin-top:2px">= Q1 + Q2</div>
+            </td>
+            <td class="rad-rv rad-rv-Q rad-rv-em" id="rs-Qt" colspan="2">—</td>
           </tr>
         </tbody>
       </table>

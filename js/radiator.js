@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════
 // RADIATOR ε-NTU CALCULATOR  (js/radiator.js)
-// JUST FSAE – FPI 기반 물리 모델
+// JUST FSAE – FPI 기반 물리 모델 (교차류 직렬 2단)
 // ═══════════════════════════════════════════════════════
 
 function rg(id) { return parseFloat(document.getElementById(id)?.value) || 0; }
@@ -38,20 +38,11 @@ function radAutoFinH() {
   }
 }
 
-// ── ε 공식 ────────────────────────────────────────────
-function calcEps(NTU, R, pass) {
+// ── ε 공식 (교차류 양쪽 비혼합) ───────────────────────
+function calcEps(NTU, R) {
   if (!isFinite(NTU) || NTU <= 0) return 0;
-  if (pass === 'single') {
-    if (Math.abs(1 - R) < 1e-8) return NTU / (1 + NTU);
-    const e = Math.exp(-NTU * (1 - R));
-    return (1 - e) / (1 - R * e);
-  } else {
-    // Double pass: ε = 2 / (1 + R + √(1+R²)·coth(NTU·√(1+R²)/2))
-    const sq   = Math.sqrt(1 + R * R);
-    const arg  = NTU * sq / 2;
-    const coth = arg > 350 ? 1 : Math.cosh(arg) / Math.sinh(arg);
-    return 2 / (1 + R + sq * coth);
-  }
+  if (R < 1e-8) return 1 - Math.exp(-NTU);
+  return 1 - Math.exp((Math.pow(NTU, 0.22) / R) * (Math.exp(-R * Math.pow(NTU, 0.78)) - 1));
 }
 
 // ── 메인 계산 ─────────────────────────────────────────
@@ -86,10 +77,11 @@ function calcRadiator() {
   const A_front = (W_mm / 1000) * (H_mm / 1000);   // m²
 
   // ══════════════════════════════════════════════════
-  // 2. 공기 체적유량
+  // 2. 공기 체적유량 (라디에이터 nr개 합산)
   // ══════════════════════════════════════════════════
-  const v_ms = v_kmh / 3.6;
-  const Va   = A_front * v_ms;                       // m³/s
+  const v_ms      = v_kmh / 3.6;
+  const Va_total  = A_front * nr * v_ms;   // 총 공기량 m³/s
+  const Va_single = A_front * v_ms;        // 1개 라디에이터 기준
 
   // ══════════════════════════════════════════════════
   // 3. 핀 피치
@@ -97,46 +89,49 @@ function calcRadiator() {
   const fin_pitch = 25.4 / fpi;                      // mm
 
   // ══════════════════════════════════════════════════
-  // 4. 총 핀 수
+  // 4. 총 핀 수 (가로W 방향, 튜브 사이 간격 N-1)
   // ══════════════════════════════════════════════════
-  const n_fins = (H_mm / fin_pitch) * N * nr;
+  const n_fins = (W_mm / fin_pitch) * (N - 1) * nr;
 
   // ══════════════════════════════════════════════════
   // 5. 총 열교환 면적
   // ══════════════════════════════════════════════════
-  const A_total = n_fins * 2 * (fh_mm / 1000) * (T_mm / 1000);   // m²
+  const A_total  = n_fins * 2 * (fh_mm / 1000) * (T_mm / 1000);  // m² (nr개 합산)
+  const A_single = nr > 0 ? A_total / nr : A_total;               // 1개 기준
 
   // ══════════════════════════════════════════════════
-  // 6–7. 열용량률
+  // 6–7. 열용량률 (1개 라디에이터 기준)
   // ══════════════════════════════════════════════════
-  const Ca   = rha * Va * cpa;                       // W/K
-  const Vw   = Vw_Lmin / 60000;                      // m³/s
-  const Cw   = rhw * Vw * cpw;                       // W/K
-  const Cmin = Math.min(Ca, Cw);
-  const Cmax = Math.max(Ca, Cw);
+  const Ca    = rha * Va_single * cpa;               // W/K
+  const Vw    = Vw_Lmin / 60000;                      // m³/s
+  const Cw    = rhw * Vw * cpw;                       // W/K
+  const Cmin  = Math.min(Ca, Cw);
+  const Cmax  = Math.max(Ca, Cw);
 
   // ══════════════════════════════════════════════════
-  // 8–11. Q_max, R, NTU
+  // 8–11. Q_max, R, NTU (1개 라디에이터 기준)
   // ══════════════════════════════════════════════════
   const Qmax = Cmin * (Tw - Ta);
   const R    = Cmin / Cmax;
-  const NTU  = (U * A_total) / Cmin;
+  const NTU  = (U * A_single) / Cmin;
 
   // ══════════════════════════════════════════════════
-  // 12–14. 유용도 & 방열량
+  // 12. 유용도 (교차류 양쪽 비혼합)
   // ══════════════════════════════════════════════════
-  const eps_s = calcEps(NTU, R, 'single');
-  const eps_d = calcEps(NTU, R, 'double');
-  const Q_s   = eps_s * Qmax;   // W
-  const Q_d   = eps_d * Qmax;   // W
+  const eps = calcEps(NTU, R);
 
   // ══════════════════════════════════════════════════
-  // 15–16. 출구 온도
+  // 13. 직렬 2단 계산
   // ══════════════════════════════════════════════════
-  const Tw_out_s = Cw > 0 ? Tw - Q_s / Cw : Tw;
-  const Ta_out_s = Ca > 0 ? Ta + Q_s / Ca : Ta;
-  const Tw_out_d = Cw > 0 ? Tw - Q_d / Cw : Tw;
-  const Ta_out_d = Ca > 0 ? Ta + Q_d / Ca : Ta;
+  // 1단계: 냉각수 Tw 입구, 공기 Ta 입구
+  const Q1      = eps * Cmin * (Tw - Ta);
+  const T_w_mid = Cw > 0 ? Tw - Q1 / Cw : Tw;
+
+  // 2단계: 냉각수 T_w_mid 입구, 새 외기 Ta 입구
+  const Q2      = eps * Cmin * (T_w_mid - Ta);
+  const T_w_out = Cw > 0 ? T_w_mid - Q2 / Cw : T_w_mid;
+
+  const Q_total = Q1 + Q2;   // W
 
   // ══════════════════════════════════════════════════
   // 결과 업데이트
@@ -145,27 +140,25 @@ function calcRadiator() {
   rs('rs-fp',  fin_pitch, 2);
   rs('rs-nf',  n_fins,    0);
   rs('rs-A',   A_total,   4);
-  rs('rs-Va',  Va,        5);
+  rs('rs-Va',  Va_total,  5);
   rs('rs-Ca',  Ca,        2);
   rs('rs-Cw',  Cw,        2);
   rs('rs-Cm',  Cmin,      2);
   rs('rs-Qm',  Qmax,      1);
   rs('rs-R',   R,         4);
   rs('rs-NTU', NTU,       4);
+  rs('rs-eps', eps,       4);
 
-  rs('rs-eps-s', eps_s,        4);
-  rs('rs-eps-d', eps_d,        4);
-  rs('rs-Q-s',   Q_s / 1000,  3);
-  rs('rs-Q-d',   Q_d / 1000,  3);
-  rs('rs-Tw-s',  Tw_out_s,    1);
-  rs('rs-Tw-d',  Tw_out_d,    1);
-  rs('rs-Ta-s',  Ta_out_s,    1);
-  rs('rs-Ta-d',  Ta_out_d,    1);
+  rs('rs-Q1',     Q1 / 1000,      3);
+  rs('rs-Tw-mid', T_w_mid,        1);
+  rs('rs-Q2',     Q2 / 1000,      3);
+  rs('rs-Tw-out', T_w_out,        1);
+  rs('rs-Qt',     Q_total / 1000, 3);
 
   // ══════════════════════════════════════════════════
-  // 엔진 발열량 비교 (Single Pass 기준)
+  // 엔진 발열량 비교 (총 방열량 기준)
   // ══════════════════════════════════════════════════
-  const Q_kW   = Q_s / 1000;
+  const Q_kW   = Q_total / 1000;
   const ok     = Q_kW >= eng;
   const stEl   = document.getElementById('rad-status');
   const mainEl = document.getElementById('rad-status-main');
@@ -175,8 +168,8 @@ function calcRadiator() {
   if (subEl) {
     const diff = (Q_kW - eng).toFixed(2);
     subEl.textContent = ok
-      ? `Single Pass ${Q_kW.toFixed(2)} kW ≥ 엔진 발열량 ${eng} kW  (+${diff} kW 여유)`
-      : `Single Pass ${Q_kW.toFixed(2)} kW < 엔진 발열량 ${eng} kW  (${diff} kW 부족 — 과열 위험!)`;
+      ? `총 방열량 ${Q_kW.toFixed(2)} kW ≥ 엔진 발열량 ${eng} kW  (+${diff} kW 여유)`
+      : `총 방열량 ${Q_kW.toFixed(2)} kW < 엔진 발열량 ${eng} kW  (${diff} kW 부족 — 과열 위험!)`;
   }
 }
 
@@ -184,33 +177,33 @@ function calcRadiator() {
 function copyRadiator() {
   const g   = id => document.getElementById(id)?.textContent || '—';
   const pad = (s, n) => String(s).padEnd(n);
-  const w   = 24;
+  const w   = 28;
 
   const lines = [
-    '[JUST FSAE] 라디에이터 ε-NTU 계산 결과',
-    '─'.repeat(62),
+    '[JUST FSAE] 라디에이터 ε-NTU 계산 결과 (교차류 직렬 2단)',
+    '─'.repeat(66),
     `코어: ${rg('rad-W')}×${rg('rad-H')}×${rg('rad-T')} mm  튜브=${rg('rad-N')}개  FPI=${rg('rad-fpi')}  핀높이=${rg('rad-fh')}mm  nr=${rg('rad-nr')}`,
     `U=${rg('rad-U')} W/m²K  Tw_in=${rg('rad-Tw')}℃  Ta_in=${rg('rad-Ta')}℃  v=${rg('rad-v')} km/h  Vw=${rg('rad-Vw')} L/min`,
-    '─'.repeat(62),
+    '─'.repeat(66),
     `${pad('A_front (m²)', w)}  ${g('rs-Af')}`,
     `${pad('핀 피치 (mm)', w)}  ${g('rs-fp')}`,
     `${pad('총 핀 수', w)}  ${g('rs-nf')}`,
     `${pad('A_total (m²)', w)}  ${g('rs-A')}`,
-    `${pad('Q_air (m³/s)', w)}  ${g('rs-Va')}`,
-    `${pad('C_air (W/K)', w)}  ${g('rs-Ca')}`,
+    `${pad('Q_air 총합 (m³/s)', w)}  ${g('rs-Va')}`,
+    `${pad('C_air/1개 (W/K)', w)}  ${g('rs-Ca')}`,
     `${pad('C_water (W/K)', w)}  ${g('rs-Cw')}`,
     `${pad('C_min (W/K)', w)}  ${g('rs-Cm')}`,
     `${pad('Q_max (W)', w)}  ${g('rs-Qm')}`,
     `${pad('R', w)}  ${g('rs-R')}`,
-    `${pad('NTU', w)}  ${g('rs-NTU')}`,
-    '─'.repeat(62),
-    `${pad('항목', w)}  ${pad('Single Pass', 14)}  Double Pass`,
-    '─'.repeat(62),
-    `${pad('유용도 ε', w)}  ${pad(g('rs-eps-s'), 14)}  ${g('rs-eps-d')}`,
-    `${pad('방열량 Q (kW)', w)}  ${pad(g('rs-Q-s'), 14)}  ${g('rs-Q-d')}`,
-    `${pad('냉각수 출구 온도 (℃)', w)}  ${pad(g('rs-Tw-s'), 14)}  ${g('rs-Tw-d')}`,
-    `${pad('공기 출구 온도 (℃)', w)}  ${pad(g('rs-Ta-s'), 14)}  ${g('rs-Ta-d')}`,
-    '─'.repeat(62),
+    `${pad('NTU (1개 기준)', w)}  ${g('rs-NTU')}`,
+    `${pad('유용도 ε (교차류)', w)}  ${g('rs-eps')}`,
+    '─'.repeat(66),
+    `${pad('1단계 방열량 Q1 (kW)', w)}  ${g('rs-Q1')}`,
+    `${pad('1단계 냉각수 출구온도 (℃)', w)}  ${g('rs-Tw-mid')}`,
+    `${pad('2단계 방열량 Q2 (kW)', w)}  ${g('rs-Q2')}`,
+    `${pad('최종 냉각수 출구온도 (℃)', w)}  ${g('rs-Tw-out')}`,
+    `${pad('총 방열량 Q_total (kW)', w)}  ${g('rs-Qt')}`,
+    '─'.repeat(66),
   ];
 
   navigator.clipboard.writeText(lines.join('\n')).then(() => {
