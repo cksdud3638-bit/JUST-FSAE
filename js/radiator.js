@@ -217,3 +217,77 @@ function copyRadiator() {
 
 // ── 인쇄 ──────────────────────────────────────────────
 function printRadiator() { window.print(); }
+
+// ════════════════════════════════════════════════════
+// 냉각팬 UI  (계산 로직 비사용 – 입력 참고 전용)
+// ════════════════════════════════════════════════════
+
+// ── 공기 유동 모드 전환 ──────────────────────────────
+function fanSetMode(mode) {
+  ['wind', 'fan', 'measured'].forEach(m => {
+    const btn   = document.getElementById('fan-mode-' + m);
+    const panel = document.getElementById('fan-panel-' + m);
+    if (btn)   btn.classList.toggle('fan-mode-active', m === mode);
+    if (panel) panel.style.display = (m === mode && mode !== 'wind') ? '' : 'none';
+  });
+}
+
+// ── 슬라이더 값 표시 동기화 (팬 전용) ───────────────
+function fanSyncSlider(sliderId, valId) {
+  const sl = document.getElementById(sliderId);
+  const vl = document.getElementById(valId);
+  if (!sl || !vl) return;
+  vl.textContent = sl.value;
+  const pct = ((+sl.value - +sl.min) / (+sl.max - +sl.min)) * 100;
+  sl.style.background = `linear-gradient(to right, var(--red) ${pct}%, #2a2a2a ${pct}%)`;
+}
+
+// ── U 계산 방식 토글 ─────────────────────────────────
+function fanSetUMode(scope, mode) {
+  const prefix    = scope === 'fan' ? 'fan' : 'meas';
+  const directBtn = document.getElementById(prefix + '-u-direct');
+  const autoBtn   = document.getElementById(prefix + '-u-auto');
+  const directPan = document.getElementById(prefix + '-u-direct-panel');
+  const autoPan   = document.getElementById(prefix + '-u-auto-panel');
+  if (directBtn) directBtn.classList.toggle('fan-u-active', mode === 'direct');
+  if (autoBtn)   autoBtn.classList.toggle('fan-u-active',  mode === 'auto');
+  if (directPan) directPan.style.display = mode === 'direct' ? '' : 'none';
+  if (autoPan)   autoPan.style.display   = mode === 'auto'   ? '' : 'none';
+}
+
+// ── 실측 체적유량 ↔ 면풍속 자동 계산 ────────────────
+function fanMeasSync(from) {
+  const W  = rg('rad-W');
+  const H  = rg('rad-H');
+  const Af = (W > 0 && H > 0) ? (W / 1000) * (H / 1000) : 0;
+  const qEl = document.getElementById('fan-meas-q');
+  const vEl = document.getElementById('fan-meas-v');
+  if (!qEl || !vEl || Af <= 0) return;
+  if (from === 'q') {
+    const q = parseFloat(qEl.value);
+    vEl.value = (isFinite(q) && q >= 0) ? (q / Af).toFixed(3) : '';
+  } else {
+    const v = parseFloat(vEl.value);
+    qEl.value = (isFinite(v) && v >= 0) ? (v * Af).toFixed(4) : '';
+  }
+}
+
+// ── 팬 참고값 계산 (표시 전용) ───────────────────────
+function fanUpdate() {
+  const cfm   = parseFloat(document.getElementById('fan-cfm')?.value)   || 0;
+  const count = parseFloat(document.getElementById('fan-count')?.value)  || 1;
+  const eff   = parseFloat(document.getElementById('fan-eff')?.value)    || 100;
+  const W     = rg('rad-W');
+  const H     = rg('rad-H');
+  const Af    = (W > 0 && H > 0) ? (W / 1000) * (H / 1000) : 0;
+
+  // 1 CFM = 0.00047194745 m³/s
+  const q_per_fan = cfm * (eff / 100) * 0.00047194745;   // 팬 1개 유효 체적유량 m³/s
+  const q_total   = q_per_fan * count;                    // 라디에이터 1개 기준 총 유량 m³/s
+  const v_core    = Af > 0 ? q_total / Af : 0;           // 평균 코어 면풍속 m/s
+
+  const refV = document.getElementById('fan-ref-v');
+  const refQ = document.getElementById('fan-ref-q');
+  if (refV) refV.textContent = (isFinite(v_core)    && v_core    >= 0) ? v_core.toFixed(2)    : '—';
+  if (refQ) refQ.textContent = (isFinite(q_per_fan) && q_per_fan >= 0) ? q_per_fan.toFixed(5) : '—';
+}

@@ -1743,6 +1743,160 @@
         </tbody>
       </table>
 
+      <!-- 냉각팬 INPUT -->
+      <div class="rad-fan-section" style="margin-top:12px">
+        <div class="rad-fan-header">🌀 냉각팬 INPUT</div>
+        <div class="rad-fan-body">
+
+          <!-- 모드 선택 버튼 3개 -->
+          <div class="rad-fan-mode-group">
+            <button id="fan-mode-wind" class="rad-fan-mode-btn fan-mode-active" onclick="fanSetMode('wind')">
+              주행풍만<br><span style="color:#e84040;font-size:10px">FAN OFF</span>
+            </button>
+            <button id="fan-mode-fan" class="rad-fan-mode-btn" onclick="fanSetMode('fan')">
+              정차 상태<br><span style="color:#e84040;font-size:10px">FAN ON</span>
+            </button>
+            <button id="fan-mode-measured" class="rad-fan-mode-btn" onclick="fanSetMode('measured')">
+              실측 코어<br><span style="font-size:10px">유량 입력</span>
+            </button>
+          </div>
+
+          <!-- 공통 안내문 -->
+          <div class="rad-fan-notice">
+            ⚠️ 팬 풍량과 주행풍은 단순 합산할 수 없습니다. 본 계산기는 주행풍 단독 또는 팬 단독 조건을 계산합니다.
+          </div>
+
+          <!-- ── 정차 + FAN ON 패널 ── -->
+          <div id="fan-panel-fan" class="rad-fan-panel" style="display:none">
+            <div class="rad-fan-row">
+              <div class="rad-fan-lbl">팬 1개당 표기 풍량</div>
+              <input class="rad-fan-inp" id="fan-cfm" type="number" value="600" min="1" step="10" oninput="fanUpdate()">
+              <span class="rad-fan-unit">CFM</span>
+            </div>
+            <div class="rad-fan-row">
+              <div class="rad-fan-lbl">라디에이터 1개당 팬 개수</div>
+              <input class="rad-fan-inp" id="fan-count" type="number" value="1" min="1" step="1" oninput="fanUpdate()">
+              <span class="rad-fan-unit">개</span>
+            </div>
+            <!-- 팬 유량 적용률 슬라이더 -->
+            <div style="padding:8px 0;border-bottom:1px solid #1c1c1c">
+              <div class="rad-fan-lbl" style="margin-bottom:6px">
+                팬 유량 적용률
+                <small>제품 표기 자유풍량 중 실제 라디에이터 코어를 통과한다고 가정하는 비율 (민감도 분석용 가정값)</small>
+              </div>
+              <div class="rad-fan-slider-hdr">
+                <span>10%</span>
+                <span class="rad-fan-slider-cur"><span id="fan-eff-val">100</span>%</span>
+                <span>100%</span>
+              </div>
+              <input type="range" id="fan-eff" min="10" max="100" step="1" value="100"
+                class="rad-slider" oninput="fanSyncSlider('fan-eff','fan-eff-val'); fanUpdate()">
+            </div>
+            <!-- 팬 장착 커버율 슬라이더 -->
+            <div style="padding:8px 0;border-bottom:1px solid #1c1c1c">
+              <div class="rad-fan-lbl" style="margin-bottom:6px">팬 장착 커버율</div>
+              <div class="rad-fan-slider-hdr">
+                <span>0%</span>
+                <span class="rad-fan-slider-cur"><span id="fan-cover-val">100</span>%</span>
+                <span>100%</span>
+              </div>
+              <input type="range" id="fan-cover" min="0" max="100" step="1" value="100"
+                class="rad-slider" oninput="fanSyncSlider('fan-cover','fan-cover-val'); fanUpdate()">
+            </div>
+            <!-- U 계산 방식 토글 -->
+            <div style="padding:8px 0;border-bottom:1px solid #1c1c1c">
+              <div class="rad-fan-lbl" style="margin-bottom:6px">U 계산 방식</div>
+              <div class="rad-fan-toggle">
+                <button id="fan-u-direct" class="rad-fan-toggle-btn fan-u-active" onclick="fanSetUMode('fan','direct')">직접 입력</button>
+                <button id="fan-u-auto" class="rad-fan-toggle-btn" onclick="fanSetUMode('fan','auto')">면풍속 기반 자동 추정</button>
+              </div>
+              <!-- 직접 입력: 팬 작동 U -->
+              <div id="fan-u-direct-panel" style="margin-top:8px">
+                <div class="rad-fan-row" style="border-bottom:none;padding-top:4px">
+                  <div class="rad-fan-lbl">팬 작동 U</div>
+                  <input class="rad-fan-inp" id="fan-U-direct" type="number" value="80" min="10" step="10">
+                  <span class="rad-fan-unit">W/m²·K</span>
+                </div>
+              </div>
+              <!-- 자동 추정: 정차 U + 60km/h U -->
+              <div id="fan-u-auto-panel" style="margin-top:8px;display:none">
+                <div class="rad-fan-row">
+                  <div class="rad-fan-lbl">정차 기본 U</div>
+                  <input class="rad-fan-inp" id="fan-U-idle" type="number" value="60" min="10" step="10">
+                  <span class="rad-fan-unit">W/m²·K</span>
+                </div>
+                <div class="rad-fan-row" style="border-bottom:none">
+                  <div class="rad-fan-lbl">60 km/h 주행 U</div>
+                  <input class="rad-fan-inp" id="fan-U-60" type="number" value="200" min="10" step="10">
+                  <span class="rad-fan-unit">W/m²·K</span>
+                </div>
+              </div>
+            </div>
+            <!-- 참고값 박스 -->
+            <div class="rad-fan-ref" style="margin-top:4px">
+              <div class="rad-fan-ref-title">참고값 (입력 기반 추정)</div>
+              <div class="rad-fan-ref-row">
+                <span class="rad-fan-lbl">코어 면풍속</span>
+                <span id="fan-ref-v" class="rad-fan-ref-val">—</span>
+                <span class="rad-fan-unit">m/s</span>
+              </div>
+              <div class="rad-fan-ref-row">
+                <span class="rad-fan-lbl">팬 1개 유효 체적유량</span>
+                <span id="fan-ref-q" class="rad-fan-ref-val">—</span>
+                <span class="rad-fan-unit">m³/s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── 실측 코어 유량 입력 패널 ── -->
+          <div id="fan-panel-measured" class="rad-fan-panel" style="display:none">
+            <div class="rad-fan-row">
+              <div class="rad-fan-lbl">
+                실측 체적유량 (1개)
+                <small>한 값 입력 시 다른 값 자동 계산</small>
+              </div>
+              <input class="rad-fan-inp" id="fan-meas-q" type="number" placeholder="—" min="0" step="0.001"
+                oninput="fanMeasSync('q')">
+              <span class="rad-fan-unit">m³/s</span>
+            </div>
+            <div class="rad-fan-row">
+              <div class="rad-fan-lbl">평균 코어 면풍속 (1개)</div>
+              <input class="rad-fan-inp" id="fan-meas-v" type="number" placeholder="—" min="0" step="0.01"
+                oninput="fanMeasSync('v')">
+              <span class="rad-fan-unit">m/s</span>
+            </div>
+            <!-- U 계산 방식 토글 (실측) -->
+            <div style="padding:8px 0">
+              <div class="rad-fan-lbl" style="margin-bottom:6px">U 계산 방식</div>
+              <div class="rad-fan-toggle">
+                <button id="meas-u-direct" class="rad-fan-toggle-btn fan-u-active" onclick="fanSetUMode('meas','direct')">직접 입력</button>
+                <button id="meas-u-auto" class="rad-fan-toggle-btn" onclick="fanSetUMode('meas','auto')">면풍속 기반 자동 추정</button>
+              </div>
+              <div id="meas-u-direct-panel" style="margin-top:8px">
+                <div class="rad-fan-row" style="border-bottom:none;padding-top:4px">
+                  <div class="rad-fan-lbl">U 직접 입력</div>
+                  <input class="rad-fan-inp" id="meas-U-direct" type="number" value="80" min="10" step="10">
+                  <span class="rad-fan-unit">W/m²·K</span>
+                </div>
+              </div>
+              <div id="meas-u-auto-panel" style="margin-top:8px;display:none">
+                <div class="rad-fan-row">
+                  <div class="rad-fan-lbl">정차 기본 U</div>
+                  <input class="rad-fan-inp" id="meas-U-idle" type="number" value="60" min="10" step="10">
+                  <span class="rad-fan-unit">W/m²·K</span>
+                </div>
+                <div class="rad-fan-row" style="border-bottom:none">
+                  <div class="rad-fan-lbl">60 km/h 주행 U</div>
+                  <input class="rad-fan-inp" id="meas-U-60" type="number" value="200" min="10" step="10">
+                  <span class="rad-fan-unit">W/m²·K</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- 유체 Input -->
       <table class="rad-table" style="margin-top:12px">
         <thead><tr><th colspan="3">💧 유체 Input</th></tr></thead>
