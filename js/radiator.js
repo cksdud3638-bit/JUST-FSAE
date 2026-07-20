@@ -219,6 +219,139 @@ function copyRadiator() {
 function printRadiator() { window.print(); }
 
 // ════════════════════════════════════════════════════
+// 팬 유량 계산 순수 함수 라이브러리
+// 기존 주행풍 계산 로직(calcRadiator)과 완전 분리
+// ════════════════════════════════════════════════════
+
+const CFM_TO_M3S = 0.00047194745; // 1 CFM → m³/s  (= 0.3048³ / 60)
+
+/**
+ * CFM → m³/s 변환
+ * @param {number} cfm  체적유량 (CFM, cubic feet per minute)
+ * @returns {number}    체적유량 (m³/s)
+ */
+function convertCfmToM3s(cfm) {
+  return cfm * CFM_TO_M3S;
+}
+
+/**
+ * 라디에이터 1개당 팬 실효 체적유량 계산
+ * @param {number} fanCFM          팬 1개당 표기 풍량 (CFM)
+ * @param {number} fansPerRadiator 라디에이터 1개당 팬 개수
+ * @param {number} fanFlowPercent  팬 유량 적용률 (0~100 %) → 내부에서 0~1 로 변환
+ * @returns {number}               라디에이터 1개당 실효 체적유량 (m³/s)
+ */
+function calculateFanFlowPerRadiator(fanCFM, fansPerRadiator, fanFlowPercent) {
+  const fanFlowFactor = fanFlowPercent / 100;
+  return convertCfmToM3s(fanCFM) * fansPerRadiator * fanFlowFactor;
+}
+
+/**
+ * 코어 평균 면풍속 계산
+ * @param {number} V_fan_per_radiator 라디에이터 1개당 실효 체적유량 (m³/s)
+ * @param {number} W_mm               코어 가로 (mm)
+ * @param {number} H_mm               코어 세로 (mm)
+ * @returns {{ v_face_ms: number, v_face_kmh: number }}
+ *   v_face_ms  : 코어 면풍속 (m/s)
+ *   v_face_kmh : 코어 면풍속 km/h 환산
+ */
+function calculateFaceVelocity(V_fan_per_radiator, W_mm, H_mm) {
+  const A_front = (W_mm / 1000) * (H_mm / 1000); // 정면 면적 m²
+  const v_face  = A_front > 0 ? V_fan_per_radiator / A_front : 0; // m/s
+  return { v_face_ms: v_face, v_face_kmh: v_face * 3.6 };
+}
+
+/**
+ * 면풍속 기반 U 선형 보간 추정
+ * 기준: 0 m/s (정차) ~ 16.6667 m/s (60 km/h) 구간 선형 보간
+ * @param {number} v_face_ms 코어 면풍속 (m/s)
+ * @param {number} U_still   정차 기준 U (W/m²·K)
+ * @param {number} U_60kmh   60 km/h 기준 U (W/m²·K)
+ * @returns {number}         추정 U (W/m²·K)
+ */
+function estimateUFromFaceVelocity(v_face_ms, U_still, U_60kmh) {
+  const V_60KMH = 16.6667; // 60 km/h → m/s
+  const ratio   = Math.min(Math.max(v_face_ms / V_60KMH, 0), 1);
+  return U_still + (U_60kmh - U_still) * ratio;
+}
+
+/**
+ * 팬 커버율 반영 등가 U 계산
+ * 팬이 코어 일부만 커버할 때 커버 영역과 비커버 영역의 면적 가중 평균
+ * @param {number} U_still            정차(비커버 영역) U (W/m²·K)
+ * @param {number} U_fan              팬 작동 영역 U (W/m²·K)
+ * @param {number} fanCoveragePercent 팬 장착 커버율 (0~100 %)
+ * @returns {number}                  등가 U (W/m²·K)
+ */
+function calculateEquivalentU(U_still, U_fan, fanCoveragePercent) {
+  const coverageRatio = fanCoveragePercent / 100;
+  return U_still + coverageRatio * (U_fan - U_still);
+}
+
+/**
+ * 공기측·냉각수측 열용량률 계산
+ * @param {number} rho_air          공기 밀도 (kg/m³)
+ * @param {number} V_air            공기 체적유량 (m³/s)
+ * @param {number} cp_air           공기 비열 (J/kg·K)
+ * @param {number} rho_water        냉각수 밀도 (kg/m³)
+ * @param {number} coolantFlow_Lmin 냉각수 체적유량 (L/min)
+ * @param {number} cp_water         냉각수 비열 (J/kg·K)
+ * @returns {{ C_air: number, C_water: number, C_min: number, C_max: number, Cr: number }}
+ *   C_air   : 공기측 열용량률 (W/K)
+ *   C_water : 냉각수측 열용량률 (W/K)
+ *   C_min   : min(C_air, C_water) (W/K)
+ *   C_max   : max(C_air, C_water) (W/K)
+ *   Cr      : 열용량률 비 C_min/C_max (dimensionless)
+ */
+function calculateCapacityRates(rho_air, V_air, cp_air, rho_water, coolantFlow_Lmin, cp_water) {
+  const C_air   = rho_air   * V_air                      * cp_air;   // W/K
+  const C_water = rho_water * (coolantFlow_Lmin / 60000) * cp_water; // W/K
+  const C_min   = Math.min(C_air, C_water);
+  const C_max   = Math.max(C_air, C_water);
+  const Cr      = C_max > 0 ? C_min / C_max : 0;
+  return { C_air, C_water, C_min, C_max, Cr };
+}
+
+/**
+ * 교차류 양쪽 비혼합 ε-NTU 공식 (Chang & Hsu 근사식)
+ * @param {number} NTU 전달단위수 (dimensionless)
+ * @param {number} Cr  열용량률 비 C_min/C_max (0~1)
+ * @returns {number}   유용도 ε (0~1, clamp 적용)
+ */
+function calculateCrossflowEffectiveness(NTU, Cr) {
+  let epsilon;
+  if (Cr < 1e-6) {
+    // Cr → 0 극한: 최대 유체 용량이 무한대인 경우
+    epsilon = 1 - Math.exp(-NTU);
+  } else {
+    epsilon = 1 - Math.exp((Math.pow(NTU, 0.22) / Cr) * (Math.exp(-Cr * Math.pow(NTU, 0.78)) - 1));
+  }
+  return Math.min(Math.max(epsilon, 0), 1);
+}
+
+// ── 팬 모드 검산 (페이지 로드 시 콘솔 출력) ──────────
+(function fanSelfTest() {
+  // 검산 조건: 팬 CFM 600, 팬 1개, 적용률 100%, 코어 160×290 mm
+  const CFM     = 600;
+  const W       = 160;    // mm
+  const H       = 290;    // mm
+  const U_still = 60;     // W/m²·K
+  const U_60kmh = 200;    // W/m²·K
+
+  const q_m3s             = convertCfmToM3s(CFM);
+  const q_per_r           = calculateFanFlowPerRadiator(CFM, 1, 100);
+  const { v_face_ms, v_face_kmh } = calculateFaceVelocity(q_per_r, W, H);
+  const U_est             = estimateUFromFaceVelocity(v_face_ms, U_still, U_60kmh);
+
+  console.group('[JUST] 팬 모드 검산');
+  console.log(`600 CFM → m³/s      : ${q_m3s.toFixed(5)}       (예상: 0.28317)`);
+  console.log(`코어 면풍속         : ${v_face_ms.toFixed(2)} m/s       (예상: ~6.10)`);
+  console.log(`면풍속 km/h 환산    : ${v_face_kmh.toFixed(1)} km/h      (예상: ~22)`);
+  console.log(`자동 추정 U         : ${U_est.toFixed(1)} W/m²·K  (예상: ~111)`);
+  console.groupEnd();
+})();
+
+// ════════════════════════════════════════════════════
 // 냉각팬 UI  (계산 로직 비사용 – 입력 참고 전용)
 // ════════════════════════════════════════════════════
 
