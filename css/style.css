@@ -536,5 +536,26 @@ textarea.form-control{resize:vertical;min-height:80px}
 .rad-fan-slider-hdr{display:flex;justify-content:space-between;font-size:10px;color:#555;margin-bottom:4px}
 .rad-fan-slider-cur{color:#aaa;font-weight:700}
 
+/* ── 비교 카드 ────────────────────────────────────── */
+.rad-compare{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+.rad-ccard{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.rad-ccard-header{background:#1a1a1a;padding:12px 16px;border-bottom:1px solid #2a2a2a;position:relative;flex-shrink:0}
+.rad-ccard-header::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,0,0,0.5),transparent)}
+.rad-ccard-title{font-size:12px;font-weight:700;color:#fff;letter-spacing:0.5px}
+.rad-ccard-sub{font-size:10px;color:#555;margin-top:2px}
+.rad-ccard-body{padding:14px 16px;display:flex;flex-direction:column;flex:1}
+.rad-cc-Q-lbl{font-size:10px;color:#555;text-align:center;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:2px;margin-top:4px}
+.rad-cc-Q{font-size:24px;font-weight:800;color:var(--red);text-align:center;padding:8px 0 12px;border-bottom:1px solid #1c1c1c;margin-bottom:8px}
+.rad-cc-row{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:4px 8px;padding:5px 0;border-bottom:1px solid #111}
+.rad-cc-lbl{font-size:11px;color:#666}
+.rad-cc-val{font-size:12px;font-weight:600;color:#bbb;text-align:right;min-width:52px}
+.rad-cc-unit{font-size:10px;color:#444;min-width:48px}
+.rad-cc-verdict{text-align:center;padding:8px 10px;border-radius:6px;margin-top:10px;font-size:11px;font-weight:700;line-height:1.4}
+.rad-cc-verdict.ok{background:rgba(0,204,102,0.08);color:var(--green);border:1px solid rgba(0,204,102,0.2)}
+.rad-cc-verdict.ng{background:rgba(255,0,0,0.08);color:var(--red);border:1px solid rgba(255,0,0,0.2)}
+.rad-cc-verdict.ref{background:#0e0e0e;color:#555;border:1px solid #1e1e1e}
+.rad-cc-notice{font-size:10px;color:#444;margin-top:8px;text-align:center;line-height:1.5;border-top:1px solid #111;padding-top:8px}
+
 /* ── responsive ── */
 @media(max-width:1000px){.rad-layout{grid-template-columns:1fr}}
+@media(max-width:900px){.rad-compare{grid-template-columns:1fr}}

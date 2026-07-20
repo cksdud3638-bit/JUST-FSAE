@@ -2117,6 +2117,68 @@
     </div><!-- end right -->
 
   </div><!-- end rad-layout -->
+
+  <!-- ══════════ 비교 카드 ══════════ -->
+  <div class="rad-compare">
+
+    <!-- 카드 1: 주행풍 FAN OFF -->
+    <div class="rad-ccard">
+      <div class="rad-ccard-header">
+        <div class="rad-ccard-title">🚗 주행풍 · FAN OFF</div>
+        <div class="rad-ccard-sub">유체 Input 기준 현재 계산값</div>
+      </div>
+      <div class="rad-ccard-body">
+        <div class="rad-cc-Q-lbl">총 방열량 Q_total</div>
+        <div class="rad-cc-Q" id="cc-wind-Qt">—</div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">공기유량 (1개 기준)</span><span class="rad-cc-val" id="cc-wind-Va">—</span><span class="rad-cc-unit">m³/s</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">코어 면풍속</span><span class="rad-cc-val" id="cc-wind-v">—</span><span class="rad-cc-unit">m/s</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">적용 U</span><span class="rad-cc-val" id="cc-wind-U">—</span><span class="rad-cc-unit">W/m²·K</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">1단 방열량 Q1</span><span class="rad-cc-val" id="cc-wind-Q1">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">2단 방열량 Q2</span><span class="rad-cc-val" id="cc-wind-Q2">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">냉각수 출구온도</span><span class="rad-cc-val" id="cc-wind-Tw">—</span><span class="rad-cc-unit">℃</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">발열 대비 여유</span><span class="rad-cc-val" id="cc-wind-margin">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-verdict ref" id="cc-wind-verdict">계산 중...</div>
+      </div>
+    </div>
+
+    <!-- 카드 2: 정차 FAN ON -->
+    <div class="rad-ccard">
+      <div class="rad-ccard-header">
+        <div class="rad-ccard-title">🌀 정차 · FAN ON</div>
+        <div class="rad-ccard-sub">냉각팬 INPUT 기준 추정값</div>
+      </div>
+      <div class="rad-ccard-body">
+        <div class="rad-cc-Q-lbl">총 방열량 Q_total</div>
+        <div class="rad-cc-Q" id="cc-fan-Qt">—</div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">공기유량 (1개 기준)</span><span class="rad-cc-val" id="cc-fan-Va">—</span><span class="rad-cc-unit">m³/s</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">코어 면풍속</span><span class="rad-cc-val" id="cc-fan-v">—</span><span class="rad-cc-unit">m/s</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">적용 등가 U</span><span class="rad-cc-val" id="cc-fan-U">—</span><span class="rad-cc-unit">W/m²·K</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">1단 방열량 Q1</span><span class="rad-cc-val" id="cc-fan-Q1">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">2단 방열량 Q2</span><span class="rad-cc-val" id="cc-fan-Q2">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">냉각수 출구온도</span><span class="rad-cc-val" id="cc-fan-Tw">—</span><span class="rad-cc-unit">℃</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">발열 대비 여유</span><span class="rad-cc-val" id="cc-fan-margin">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-verdict ref" id="cc-fan-verdict">팬 INPUT 입력 필요</div>
+        <div class="rad-cc-notice">본 결과는 정차 상태에서 팬이 만드는 강제유동 조건의 추정값입니다.</div>
+      </div>
+    </div>
+
+    <!-- 카드 3: 엔진 목표 기준선 -->
+    <div class="rad-ccard">
+      <div class="rad-ccard-header">
+        <div class="rad-ccard-title">🔥 엔진 목표 기준선</div>
+        <div class="rad-ccard-sub">입력된 엔진 발열량 기준</div>
+      </div>
+      <div class="rad-ccard-body">
+        <div class="rad-cc-Q-lbl">목표 방열량</div>
+        <div class="rad-cc-Q" id="cc-eng-Qt" style="color:#888">—</div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">주행풍 여유량</span><span class="rad-cc-val" id="cc-eng-wind-margin" style="color:#555">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-row"><span class="rad-cc-lbl">FAN ON 여유량</span><span class="rad-cc-val" id="cc-eng-fan-margin" style="color:#555">—</span><span class="rad-cc-unit">kW</span></div>
+        <div class="rad-cc-verdict ref" id="cc-eng-verdict">엔진 발열 기준선</div>
+      </div>
+    </div>
+
+  </div><!-- end compare -->
+
 </div><!-- end tab-radiator -->
 
 </main>

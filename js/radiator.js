@@ -329,6 +329,51 @@ function calculateCrossflowEffectiveness(NTU, Cr) {
   return Math.min(Math.max(epsilon, 0), 1);
 }
 
+/**
+ * 라디에이터 1단 ε-NTU 계산
+ * @param {number} UA_per_radiator  열통과율×면적 (W/K, 1개 기준)
+ * @param {number} C_min            최소 열용량률 (W/K)
+ * @param {number} C_max            최대 열용량률 (W/K)
+ * @param {number} Cr               열용량률 비 C_min/C_max
+ * @param {number} T_water_in       냉각수 입구온도 (℃)
+ * @param {number} T_air_in         공기 입구온도 (℃)
+ * @param {number} C_water          냉각수측 열용량률 (W/K)
+ * @returns {{ NTU, epsilon, Q_max, Q, T_water_out }}
+ */
+function calculateRadiatorStage(UA_per_radiator, C_min, C_max, Cr, T_water_in, T_air_in, C_water) {
+  const NTU         = C_min > 0 ? UA_per_radiator / C_min : 0;
+  const epsilon     = calculateCrossflowEffectiveness(NTU, Cr);
+  const Q_max       = C_min * Math.max(T_water_in - T_air_in, 0);
+  const Q           = Math.max(epsilon * Q_max, 0);
+  const T_water_out = C_water > 0 ? T_water_in - Q / C_water : T_water_in;
+  return { NTU, epsilon, Q_max, Q, T_water_out };
+}
+
+/**
+ * 직렬 2단 라디에이터 계산
+ * @param {number} UA_per_radiator     열통과율×면적 (W/K, 1개 기준)
+ * @param {number} V_air_per_radiator  공기 체적유량 (m³/s, 1개 기준)
+ * @param {number} rho_air             공기 밀도 (kg/m³)
+ * @param {number} cp_air              공기 비열 (J/kg·K)
+ * @param {number} rho_water           냉각수 밀도 (kg/m³)
+ * @param {number} coolantFlow_Lmin    냉각수 유량 (L/min)
+ * @param {number} cp_water            냉각수 비열 (J/kg·K)
+ * @param {number} T_water_in          냉각수 입구온도 (℃)
+ * @param {number} T_air_in            공기 입구온도 (℃, 각 단 신선 외기)
+ * @returns {{ stage1, stage2, Q_total, T_water_final, rates }}
+ */
+function calculateTwoStageRadiator(UA_per_radiator, V_air_per_radiator, rho_air, cp_air,
+                                    rho_water, coolantFlow_Lmin, cp_water, T_water_in, T_air_in) {
+  const rates  = calculateCapacityRates(rho_air, V_air_per_radiator, cp_air,
+                                         rho_water, coolantFlow_Lmin, cp_water);
+  const stage1 = calculateRadiatorStage(UA_per_radiator, rates.C_min, rates.C_max, rates.Cr,
+                                          T_water_in, T_air_in, rates.C_water);
+  const stage2 = calculateRadiatorStage(UA_per_radiator, rates.C_min, rates.C_max, rates.Cr,
+                                          stage1.T_water_out, T_air_in, rates.C_water);
+  return { stage1, stage2, Q_total: stage1.Q + stage2.Q,
+           T_water_final: stage2.T_water_out, rates };
+}
+
 // ── 팬 모드 검산 (페이지 로드 시 콘솔 출력) ──────────
 (function fanSelfTest() {
   // 검산 조건: 팬 CFM 600, 팬 1개, 적용률 100%, 코어 160×290 mm
@@ -424,3 +469,209 @@ function fanUpdate() {
   if (refV) refV.textContent = (isFinite(v_core)    && v_core    >= 0) ? v_core.toFixed(2)    : '—';
   if (refQ) refQ.textContent = (isFinite(q_per_fan) && q_per_fan >= 0) ? q_per_fan.toFixed(5) : '—';
 }
+
+// ════════════════════════════════════════════════════
+// 팬 모드 계산 & 비교 카드
+// ════════════════════════════════════════════════════
+
+let _lastWindQtKW = NaN; // 주행풍 총 방열량 캐시 (기준선 카드용)
+let _lastFanQtKW  = NaN; // 팬 온 총 방열량 캐시
+
+// 숫자 안전 출력 헬퍼
+function _cc(id, val, d) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = (isFinite(val) && val !== null) ? val.toFixed(d ?? 2) : '—';
+}
+
+// 판정 배지 (margin = Q_total − eng_kW)
+function _verdict(id, margin) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!isFinite(margin)) { el.textContent = '—'; el.className = 'rad-cc-verdict ref'; return; }
+  if (margin >= 0) {
+    el.textContent = '✅ 냉각 용량 충족  (+' + margin.toFixed(2) + ' kW)';
+    el.className   = 'rad-cc-verdict ok';
+  } else {
+    el.textContent = '⚠️ 냉각 용량 부족  (' + margin.toFixed(2) + ' kW)';
+    el.className   = 'rad-cc-verdict ng';
+  }
+}
+
+// ── 주행풍 카드 (기존 rs-* DOM 참조) ─────────────────
+function updateWindCard() {
+  const nr  = Math.max(rg('rad-nr'), 1);
+  const eng = rg('rad-eng');
+  const getRS = function(id) { return parseFloat(document.getElementById(id)?.textContent); };
+
+  const Va_total = getRS('rs-Va');
+  const Qt       = getRS('rs-Qt');
+  const Q1       = getRS('rs-Q1');
+  const Q2       = getRS('rs-Q2');
+  const Tw_out   = getRS('rs-Tw-out');
+  const margin   = isFinite(Qt) ? Qt - eng : NaN;
+
+  const qtEl = document.getElementById('cc-wind-Qt');
+  if (qtEl) qtEl.textContent = isFinite(Qt) ? Qt.toFixed(3) + ' kW' : '—';
+
+  _cc('cc-wind-Va',     isFinite(Va_total) ? Va_total / nr : NaN, 5);
+  _cc('cc-wind-v',      rg('rad-v') / 3.6,   2);
+  _cc('cc-wind-U',      rg('rad-U'),           0);
+  _cc('cc-wind-Q1',     Q1,                    3);
+  _cc('cc-wind-Q2',     Q2,                    3);
+  _cc('cc-wind-Tw',     Tw_out,               1);
+  _cc('cc-wind-margin', margin,                2);
+  _verdict('cc-wind-verdict', margin);
+
+  _lastWindQtKW = isFinite(Qt) ? Qt : NaN;
+  updateRefCard(eng);
+}
+
+// ── 팬 카드 결과 표시 ─────────────────────────────────
+function updateFanCard(result, face, U_eq, V_air, eng) {
+  const Qt   = result.Q_total / 1000;
+  const Q1   = result.stage1.Q / 1000;
+  const Q2   = result.stage2.Q / 1000;
+  const Tw   = result.T_water_final;
+  const margin = Qt - eng;
+
+  const qtEl = document.getElementById('cc-fan-Qt');
+  if (qtEl) qtEl.textContent = Qt.toFixed(3) + ' kW';
+
+  _cc('cc-fan-Va',     V_air,           5);
+  _cc('cc-fan-v',      face.v_face_ms,  2);
+  _cc('cc-fan-U',      U_eq,            0);
+  _cc('cc-fan-Q1',     Q1,              3);
+  _cc('cc-fan-Q2',     Q2,              3);
+  _cc('cc-fan-Tw',     Tw,              1);
+  _cc('cc-fan-margin', margin,          2);
+  _verdict('cc-fan-verdict', margin);
+
+  _lastFanQtKW = Qt;
+  updateRefCard(eng);
+}
+
+// ── 팬 카드 메시지 (미입력·오류) ────────────────────
+function _showFanMsg(msg, isError) {
+  const el = document.getElementById('cc-fan-verdict');
+  if (el) { el.textContent = msg; el.className = 'rad-cc-verdict ' + (isError ? 'ng' : 'ref'); }
+  ['cc-fan-Qt','cc-fan-Va','cc-fan-v','cc-fan-U','cc-fan-Q1','cc-fan-Q2','cc-fan-Tw','cc-fan-margin']
+    .forEach(function(id) { var e = document.getElementById(id); if (e) e.textContent = '—'; });
+  _lastFanQtKW = NaN;
+  updateRefCard(rg('rad-eng'));
+}
+
+// ── 기준선 카드 ───────────────────────────────────────
+function updateRefCard(eng) {
+  const engEl = document.getElementById('cc-eng-Qt');
+  if (engEl) engEl.textContent = eng > 0 ? eng.toFixed(1) + ' kW' : '—';
+
+  var windM = isFinite(_lastWindQtKW) && eng > 0 ? _lastWindQtKW - eng : NaN;
+  var fanM  = isFinite(_lastFanQtKW)  && eng > 0 ? _lastFanQtKW  - eng : NaN;
+
+  var wEl = document.getElementById('cc-eng-wind-margin');
+  if (wEl) {
+    wEl.textContent = isFinite(windM) ? (windM >= 0 ? '+' : '') + windM.toFixed(2) : '—';
+    wEl.style.color = isFinite(windM) ? (windM >= 0 ? 'var(--green)' : 'var(--red)') : '#555';
+  }
+  var fEl = document.getElementById('cc-eng-fan-margin');
+  if (fEl) {
+    fEl.textContent = isFinite(fanM) ? (fanM >= 0 ? '+' : '') + fanM.toFixed(2) : '—';
+    fEl.style.color = isFinite(fanM)  ? (fanM  >= 0 ? 'var(--green)' : 'var(--red)') : '#555';
+  }
+}
+
+// ── 팬 모드 메인 계산 ─────────────────────────────────
+function calcFanMode() {
+  var W_mm   = rg('rad-W'),  H_mm   = rg('rad-H'),  nr      = rg('rad-nr');
+  var rha    = rg('rad-rha'), cpa   = rg('rad-cpa');
+  var rhw    = rg('rad-rhw'), cpw   = rg('rad-cpw');
+  var Ta     = rg('rad-Ta'),  Tw_in = rg('rad-Tw'), Vw_Lmin = rg('rad-Vw');
+  var eng    = rg('rad-eng');
+
+  if (W_mm <= 0 || H_mm <= 0 || nr <= 0)
+    return _showFanMsg('코어 치수 / 개수 입력 필요', true);
+  if (rha <= 0 || cpa <= 0 || rhw <= 0 || cpw <= 0)
+    return _showFanMsg('유체 물성값 확인 필요', true);
+  if (Vw_Lmin <= 0)
+    return _showFanMsg('냉각수 유량 입력 필요', true);
+  if (Tw_in <= Ta)
+    return _showFanMsg('⚠️ 냉각수 온도 ≤ 공기 온도: 방열 불가', true);
+
+  // 열교환 면적 (기존 결과 참조)
+  var A_total = parseFloat(document.getElementById('rs-A')?.textContent);
+  if (!isFinite(A_total) || A_total <= 0)
+    return _showFanMsg('열교환 면적 계산 필요 (치수 입력 후 확인)', true);
+  var A_heat_per_rad = A_total / nr;
+  var A_front = (W_mm / 1000) * (H_mm / 1000);
+
+  var isFan  = document.getElementById('fan-mode-fan')?.classList.contains('fan-mode-active');
+  var isMeas = document.getElementById('fan-mode-measured')?.classList.contains('fan-mode-active');
+  if (!isFan && !isMeas) return _showFanMsg('주행풍 FAN OFF 모드 (팬 모드 미선택)', false);
+
+  var V_air, U_fan, U_still, fanCovPct;
+
+  if (isFan) {
+    var cfm    = parseFloat(document.getElementById('fan-cfm')?.value)   || 0;
+    var count  = parseFloat(document.getElementById('fan-count')?.value)  || 1;
+    var effPct = Math.min(Math.max(parseFloat(document.getElementById('fan-eff')?.value) || 100, 0), 100);
+    fanCovPct  = Math.min(Math.max(parseFloat(document.getElementById('fan-cover')?.value) || 100, 0), 100);
+    if (cfm   <= 0) return _showFanMsg('팬 CFM 입력 필요', true);
+    if (count <= 0) return _showFanMsg('팬 개수 입력 필요', true);
+    V_air   = calculateFanFlowPerRadiator(cfm, count, effPct);
+    U_still = Math.max(parseFloat(document.getElementById('fan-U-idle')?.value)   || 60,  1);
+    var isAutoFan = document.getElementById('fan-u-auto')?.classList.contains('fan-u-active');
+    if (isAutoFan) {
+      var U60f = Math.max(parseFloat(document.getElementById('fan-U-60')?.value) || 200, 1);
+      U_fan = estimateUFromFaceVelocity(calculateFaceVelocity(V_air, W_mm, H_mm).v_face_ms, U_still, U60f);
+    } else {
+      U_fan = Math.max(parseFloat(document.getElementById('fan-U-direct')?.value) || 80, 1);
+    }
+  } else {
+    var q_val = parseFloat(document.getElementById('fan-meas-q')?.value);
+    var v_val = parseFloat(document.getElementById('fan-meas-v')?.value);
+    fanCovPct = 100;
+    if      (isFinite(q_val) && q_val > 0) V_air = q_val;
+    else if (isFinite(v_val) && v_val > 0) V_air = v_val * A_front;
+    else return _showFanMsg('실측 체적유량 또는 면풍속 입력 필요', false);
+    U_still = Math.max(parseFloat(document.getElementById('meas-U-idle')?.value) || 60, 1);
+    var isAutoMeas = document.getElementById('meas-u-auto')?.classList.contains('fan-u-active');
+    if (isAutoMeas) {
+      var U60m = Math.max(parseFloat(document.getElementById('meas-U-60')?.value) || 200, 1);
+      U_fan = estimateUFromFaceVelocity(calculateFaceVelocity(V_air, W_mm, H_mm).v_face_ms, U_still, U60m);
+    } else {
+      U_fan = Math.max(parseFloat(document.getElementById('meas-U-direct')?.value) || 80, 1);
+    }
+  }
+
+  if (V_air <= 0) return _showFanMsg('공기유량 ≤ 0: 팬 입력 확인', true);
+
+  var U_eq   = calculateEquivalentU(U_still, U_fan, fanCovPct);
+  var UA     = Math.max(U_eq, 0) * A_heat_per_rad;
+  var result = calculateTwoStageRadiator(UA, V_air, rha, cpa, rhw, Vw_Lmin, cpw, Tw_in, Ta);
+
+  if (!isFinite(result.Q_total) || result.Q_total < 0)
+    return _showFanMsg('계산 오류: 입력값 확인 필요', true);
+
+  updateFanCard(result, calculateFaceVelocity(V_air, W_mm, H_mm), U_eq, V_air, eng);
+}
+
+// ── 기존 전역 함수 래핑 (원본 코드 무수정) ────────────
+;(function patchRadiatorGlobals() {
+  var _rad = window.calcRadiator;
+  window.calcRadiator = function() { _rad(); updateWindCard(); calcFanMode(); };
+
+  var _fanUp = window.fanUpdate;
+  window.fanUpdate = function() { _fanUp(); calcFanMode(); };
+
+  var _setMode = window.fanSetMode;
+  window.fanSetMode = function(m) { _setMode(m); calcFanMode(); };
+
+  var _setU = window.fanSetUMode;
+  window.fanSetUMode = function(s, m) { _setU(s, m); calcFanMode(); };
+
+  var _measSync = window.fanMeasSync;
+  window.fanMeasSync = function(from) { _measSync(from); calcFanMode(); };
+})();
+
+// 페이지 로드 후 초기 카드 업데이트
+setTimeout(function() { updateWindCard(); calcFanMode(); }, 200);
