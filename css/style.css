@@ -556,6 +556,22 @@ textarea.form-control{resize:vertical;min-height:80px}
 .rad-cc-verdict.ref{background:#0e0e0e;color:#555;border:1px solid #1e1e1e}
 .rad-cc-notice{font-size:10px;color:#444;margin-top:8px;text-align:center;line-height:1.5;border-top:1px solid #111;padding-top:8px}
 
+/* ── 민감도 분석 표 ─────────────────────────────────── */
+.rad-sens{margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.rad-sens-header{padding:12px 16px;background:#1a1a1a;border-bottom:1px solid #2a2a2a;font-size:12px;font-weight:700;color:#fff;letter-spacing:0.5px;position:relative}
+.rad-sens-header::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,0,0,0.5),transparent)}
+.rad-sens-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rad-sens-table{width:100%;border-collapse:collapse;font-size:11px}
+.rad-sens-table th{background:#141414;color:#555;font-weight:600;text-align:center;padding:8px 10px;border-bottom:1px solid #222;white-space:nowrap}
+.rad-sens-table td{text-align:center;padding:7px 10px;border-bottom:1px solid #111;color:#777;white-space:nowrap}
+.rad-sens-table tr.rad-sens-active td{background:#1a1a1a;color:#ccc;font-weight:600}
+.rad-sens-table tr:last-child td{border-bottom:none}
+/* ── 주의문구 ──────────────────────────────────────── */
+.rad-notice-block{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.rad-notice-item{display:flex;gap:10px;align-items:flex-start;background:#0e0e0e;border:1px solid #1c1c1c;border-radius:8px;padding:10px 12px}
+.rad-notice-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+.rad-notice-text{font-size:11px;color:#555;line-height:1.65}
+
 /* ── responsive ── */
 @media(max-width:1000px){.rad-layout{grid-template-columns:1fr}}
 @media(max-width:900px){.rad-compare{grid-template-columns:1fr}}

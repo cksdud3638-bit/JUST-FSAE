@@ -2179,6 +2179,51 @@
 
   </div><!-- end compare -->
 
+  <!-- ══════════ 민감도 분석 표 ══════════ -->
+  <div class="rad-sens" id="rad-sens-section" style="display:none">
+    <div class="rad-sens-header">팬 유량 적용률별 민감도 분석</div>
+    <div class="rad-sens-wrap">
+      <table class="rad-sens-table">
+        <thead>
+          <tr>
+            <th>적용률</th>
+            <th>실효 CFM</th>
+            <th>면풍속 (m/s)</th>
+            <th>면풍속 (km/h)</th>
+            <th>적용 U (W/m²·K)</th>
+            <th>총 방열량 (kW)</th>
+            <th>엔진 발열량 대비 여유 (kW)</th>
+          </tr>
+        </thead>
+        <tbody id="rad-sens-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════ 주의문구 ══════════ -->
+  <div class="rad-notice-block">
+    <div class="rad-notice-item">
+      <div class="rad-notice-icon">⚠️</div>
+      <div class="rad-notice-text">
+        제품 표기 CFM은 저항이 없는 자유풍량일 수 있으며, 라디에이터 장착 상태의 실제 풍량을 보장하지 않습니다.
+        정확한 계산에는 팬 압력-유량 곡선, 라디에이터 압력손실 곡선 또는 실측 코어 공기속도가 필요합니다.
+      </div>
+    </div>
+    <div class="rad-notice-item">
+      <div class="rad-notice-icon">ℹ️</div>
+      <div class="rad-notice-text">
+        본 계산 결과는 팬 구매 및 냉각계통 설계를 위한 비교용 추정값이며, 실차 수온 시험을 대체하지 않습니다.
+      </div>
+    </div>
+    <div class="rad-notice-item" id="rad-notice-auto-u" style="display:none">
+      <div class="rad-notice-icon">📐</div>
+      <div class="rad-notice-text">
+        자동 추정 U는 실험식이 아닌 선형 보간값입니다.
+        정확한 계산에는 실측 코어 풍속과 열전달 성능 데이터가 필요합니다.
+      </div>
+    </div>
+  </div>
+
 </div><!-- end tab-radiator -->
 
 </main>

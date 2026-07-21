@@ -31,6 +31,12 @@ const S = {
   targetFrontPct: 45,
   driverConfig: { enabled: false, mass: 70, axlePos: 800 },
   fuelConfig: { enabled: false, liters: 0, density: 0.74, axlePos: 900 },
+  radiatorFan: {
+    airFlowMode: 'ram', fanCFM: 600, fansPerRadiator: 1,
+    fanFlowPercent: 100, fanCoveragePercent: 100, fanUMode: 'auto',
+    fanU_direct: 150, U_still: 60, U_60kmh: 200,
+    measuredFlow_m3s: 0, measuredFaceVelocity_ms: 0
+  },
 };
 
 // ═══════════════════════════════════════════════

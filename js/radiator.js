@@ -374,6 +374,64 @@ function calculateTwoStageRadiator(UA_per_radiator, V_air_per_radiator, rho_air,
            T_water_final: stage2.T_water_out, rates };
 }
 
+/**
+ * 팬 유량 적용률 3단계 민감도 분석 (50 / 75 / 100 %)
+ * @param {number} fanCFM               팬 1개 정격 CFM
+ * @param {number} fansPerRadiator      라디에이터당 팬 개수
+ * @param {number} W_mm                 코어 가로 (mm)
+ * @param {number} H_mm                 코어 세로 (mm)
+ * @param {number} U_still              정지 상태 U (W/m²·K)
+ * @param {number} U_60kmh              60 km/h 기준 U (W/m²·K)
+ * @param {number} fanCoveragePercent   팬 커버리지 (%)
+ * @param {number} A_heat_per_radiator  라디에이터 1개 열교환 면적 (m²)
+ * @param {number} rho_air              공기 밀도 (kg/m³)
+ * @param {number} cp_air               공기 비열 (J/kg·K)
+ * @param {number} rho_water            냉각수 밀도 (kg/m³)
+ * @param {number} coolantFlow_Lmin     냉각수 유량 (L/min)
+ * @param {number} cp_water             냉각수 비열 (J/kg·K)
+ * @param {number} T_water_in           냉각수 입구온도 (℃)
+ * @param {number} T_air_in             외기 온도 (℃)
+ * @param {number} engineHeat_kW        엔진 발열량 기준 (kW)
+ * @param {string} uMode                'auto' | 'direct'
+ * @param {number} fanU_direct          직접 입력 U (W/m²·K, uMode='direct' 시 사용)
+ * @returns {Array<{percent, effectiveCFM, v_face_ms, v_face_kmh, U_applied, Q_total_kW, margin_kW}>}
+ */
+function calculateFanSensitivityCases(
+  fanCFM, fansPerRadiator, W_mm, H_mm,
+  U_still, U_60kmh, fanCoveragePercent,
+  A_heat_per_radiator, rho_air, cp_air,
+  rho_water, coolantFlow_Lmin, cp_water,
+  T_water_in, T_air_in, engineHeat_kW,
+  uMode, fanU_direct
+) {
+  var scenarios = [50, 75, 100];
+  var results   = [];
+  for (var i = 0; i < scenarios.length; i++) {
+    var pct   = scenarios[i];
+    var V_fan = calculateFanFlowPerRadiator(fanCFM, fansPerRadiator, pct);
+    var face  = calculateFaceVelocity(V_fan, W_mm, H_mm);
+    var U_fan = (uMode === 'auto')
+      ? estimateUFromFaceVelocity(face.v_face_ms, U_still, U_60kmh)
+      : fanU_direct;
+    var U_eq  = calculateEquivalentU(U_still, U_fan, fanCoveragePercent);
+    var UA    = U_eq * A_heat_per_radiator;
+    var res   = calculateTwoStageRadiator(UA, V_fan, rho_air, cp_air,
+                                           rho_water, coolantFlow_Lmin, cp_water,
+                                           T_water_in, T_air_in);
+    var Qt_kW = res.Q_total / 1000;
+    results.push({
+      percent:       pct,
+      effectiveCFM:  fanCFM * fansPerRadiator * (pct / 100),
+      v_face_ms:     face.v_face_ms,
+      v_face_kmh:    face.v_face_kmh,
+      U_applied:     U_eq,
+      Q_total_kW:    Qt_kW,
+      margin_kW:     Qt_kW - engineHeat_kW
+    });
+  }
+  return results;
+}
+
 // ── 팬 모드 검산 (페이지 로드 시 콘솔 출력) ──────────
 (function fanSelfTest() {
   // 검산 조건: 팬 CFM 600, 팬 1개, 적용률 100%, 코어 160×290 mm
@@ -675,3 +733,198 @@ function calcFanMode() {
 
 // 페이지 로드 후 초기 카드 업데이트
 setTimeout(function() { updateWindCard(); calcFanMode(); }, 200);
+
+// ════════════════════════════════════════════════════
+// 민감도 분석 + Firebase 팬 입력 동기화
+// ════════════════════════════════════════════════════
+
+// ── 민감도 표 행 생성 ─────────────────────────────────
+function updateSensTable(cases, currentPct) {
+  var tbody = document.getElementById('rad-sens-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  cases.forEach(function(row) {
+    var tr   = document.createElement('tr');
+    var mCol = row.margin_kW >= 0 ? 'var(--green)' : 'var(--red)';
+    var mStr = (row.margin_kW >= 0 ? '+' : '') + row.margin_kW.toFixed(2);
+    if (row.percent === currentPct) tr.className = 'rad-sens-active';
+    tr.innerHTML =
+      '<td>' + row.percent + ' %</td>' +
+      '<td>' + row.effectiveCFM.toFixed(0) + '</td>' +
+      '<td>' + row.v_face_ms.toFixed(2) + '</td>' +
+      '<td>' + row.v_face_kmh.toFixed(1) + '</td>' +
+      '<td>' + row.U_applied.toFixed(0) + '</td>' +
+      '<td>' + row.Q_total_kW.toFixed(3) + '</td>' +
+      '<td style="color:' + mCol + '">' + mStr + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// ── 민감도 섹션 전체 업데이트 (FAN ON 모드에서만 표시) ─
+function updateSensSection() {
+  var secEl      = document.getElementById('rad-sens-section');
+  var autoWarnEl = document.getElementById('rad-notice-auto-u');
+  var isFan  = document.getElementById('fan-mode-fan')?.classList.contains('fan-mode-active');
+  var isMeas = document.getElementById('fan-mode-measured')?.classList.contains('fan-mode-active');
+
+  // 자동 U 경고 표시 여부
+  var isAutoU = false;
+  if (isFan)  isAutoU = !!document.getElementById('fan-u-auto')?.classList.contains('fan-u-active');
+  if (isMeas) isAutoU = !!document.getElementById('meas-u-auto')?.classList.contains('fan-u-active');
+  if (autoWarnEl) autoWarnEl.style.display = isAutoU ? '' : 'none';
+
+  // 민감도 표: FAN ON 모드에서만 의미 있음
+  if (!isFan || !secEl) { if (secEl) secEl.style.display = 'none'; return; }
+
+  var W_mm    = rg('rad-W'),  H_mm    = rg('rad-H'),  nr      = rg('rad-nr');
+  var rha     = rg('rad-rha'), cpa    = rg('rad-cpa');
+  var rhw     = rg('rad-rhw'), cpw    = rg('rad-cpw');
+  var Ta      = rg('rad-Ta'),  Tw_in  = rg('rad-Tw'), Vw_Lmin = rg('rad-Vw');
+  var eng     = rg('rad-eng');
+  var cfm     = parseFloat(document.getElementById('fan-cfm')?.value)    || 0;
+  var count   = parseFloat(document.getElementById('fan-count')?.value)  || 1;
+  var effPct  = parseFloat(document.getElementById('fan-eff')?.value)    || 100;
+  var covPct  = parseFloat(document.getElementById('fan-cover')?.value)  || 100;
+  var U_still = Math.max(parseFloat(document.getElementById('fan-U-idle')?.value) || 60,  1);
+  var U_60kmh = Math.max(parseFloat(document.getElementById('fan-U-60')?.value)   || 200, 1);
+  var uIsAuto = !!document.getElementById('fan-u-auto')?.classList.contains('fan-u-active');
+  var U_dir   = parseFloat(document.getElementById('fan-U-direct')?.value) || 80;
+  var A_total = parseFloat(document.getElementById('rs-A')?.textContent);
+
+  if (cfm <= 0 || count <= 0 || !isFinite(A_total) || A_total <= 0 ||
+      W_mm <= 0 || H_mm <= 0 || nr <= 0 ||
+      rha <= 0  || cpa <= 0  || rhw <= 0 || cpw <= 0 ||
+      Vw_Lmin <= 0 || Tw_in <= Ta) {
+    secEl.style.display = 'none';
+    return;
+  }
+
+  var A_heat = A_total / nr;
+  var cases  = calculateFanSensitivityCases(
+    cfm, count, W_mm, H_mm,
+    U_still, U_60kmh, covPct, A_heat,
+    rha, cpa, rhw, Vw_Lmin, cpw,
+    Tw_in, Ta, eng,
+    uIsAuto ? 'auto' : 'direct', U_dir
+  );
+
+  // 현재 슬라이더 값에서 가장 가까운 시나리오 강조
+  var snapPct = [50, 75, 100].reduce(function(best, p) {
+    return Math.abs(p - effPct) < Math.abs(best - effPct) ? p : best;
+  }, 50);
+
+  secEl.style.display = '';
+  updateSensTable(cases, snapPct);
+}
+
+// ── 팬 입력값 Firebase 저장 ────────────────────────────
+function saveRadiatorFan() {
+  if (typeof db === 'undefined' || typeof S === 'undefined' || typeof save === 'undefined') return;
+  var isFan  = !!document.getElementById('fan-mode-fan')?.classList.contains('fan-mode-active');
+  var isMeas = !!document.getElementById('fan-mode-measured')?.classList.contains('fan-mode-active');
+  var uIsAuto = !!document.getElementById('fan-u-auto')?.classList.contains('fan-u-active');
+  S.radiatorFan = {
+    airFlowMode:            isFan ? 'fan' : isMeas ? 'measured' : 'ram',
+    fanCFM:                 parseFloat(document.getElementById('fan-cfm')?.value)      || 600,
+    fansPerRadiator:        parseFloat(document.getElementById('fan-count')?.value)    || 1,
+    fanFlowPercent:         parseFloat(document.getElementById('fan-eff')?.value)      || 100,
+    fanCoveragePercent:     parseFloat(document.getElementById('fan-cover')?.value)    || 100,
+    fanUMode:               uIsAuto ? 'auto' : 'direct',
+    fanU_direct:            parseFloat(document.getElementById('fan-U-direct')?.value) || 150,
+    U_still:                parseFloat(document.getElementById('fan-U-idle')?.value)   || 60,
+    U_60kmh:                parseFloat(document.getElementById('fan-U-60')?.value)     || 200,
+    measuredFlow_m3s:       parseFloat(document.getElementById('fan-meas-q')?.value)  || 0,
+    measuredFaceVelocity_ms: parseFloat(document.getElementById('fan-meas-v')?.value) || 0
+  };
+  save('radiatorFan');
+}
+
+// ── 팬 입력값 Firebase 복원 (페이지 초기 로드용) ─────────
+function loadRadiatorFan(d) {
+  if (!d) return;
+  function sv(id, val) { var el = document.getElementById(id); if (el && val !== undefined) el.value = val; }
+  var def = (typeof S !== 'undefined' && S.radiatorFan) ? S.radiatorFan : {};
+  sv('fan-cfm',      d.fanCFM            ?? def.fanCFM            ?? 600);
+  sv('fan-count',    d.fansPerRadiator   ?? def.fansPerRadiator   ?? 1);
+  sv('fan-eff',      d.fanFlowPercent    ?? def.fanFlowPercent    ?? 100);
+  sv('fan-cover',    d.fanCoveragePercent ?? def.fanCoveragePercent ?? 100);
+  sv('fan-U-direct', d.fanU_direct       ?? def.fanU_direct       ?? 150);
+  sv('fan-U-idle',   d.U_still           ?? def.U_still           ?? 60);
+  sv('fan-U-60',     d.U_60kmh           ?? def.U_60kmh           ?? 200);
+  sv('fan-meas-q',   d.measuredFlow_m3s  ?? 0);
+  sv('fan-meas-v',   d.measuredFaceVelocity_ms ?? 0);
+  // 슬라이더 표시 갱신
+  ['fan-eff', 'fan-cover'].forEach(function(id) { fanSyncSlider(id, id + '-val'); });
+  // 공기 유동 모드 복원 (DOM 직접 조작 – 저장 루프 방지)
+  var mode = d.airFlowMode || 'ram';
+  ['wind', 'fan', 'measured'].forEach(function(m) {
+    var btn = document.getElementById('fan-mode-' + m);
+    var pnl = document.getElementById('fan-panel-' + m);
+    if (btn) btn.classList.toggle('fan-mode-active', m === mode);
+    if (pnl) pnl.style.display = (m === mode && m !== 'wind') ? '' : 'none';
+  });
+  // U 계산 방식 복원
+  var uIsAuto = (d.fanUMode !== 'direct');
+  var dBtn = document.getElementById('fan-u-direct'), aBtn = document.getElementById('fan-u-auto');
+  var dPnl = document.getElementById('fan-u-direct-panel'), aPnl = document.getElementById('fan-u-auto-panel');
+  if (dBtn) dBtn.classList.toggle('fan-u-active', !uIsAuto);
+  if (aBtn) aBtn.classList.toggle('fan-u-active',  uIsAuto);
+  if (dPnl) dPnl.style.display = !uIsAuto ? '' : 'none';
+  if (aPnl) aPnl.style.display =  uIsAuto ? '' : 'none';
+  // 참고값 표시 갱신 (fanUpdate 직접 호출 – window 경유 시 이중 저장 방지용 플래그)
+  if (typeof fanUpdate === 'function') fanUpdate();
+}
+
+// ── calcFanMode 래핑: 민감도 분석 + Firebase 저장 연결 ──
+;(function patchSensAndSync() {
+  var _fn = calcFanMode;
+  calcFanMode = function() { _fn(); updateSensSection(); saveRadiatorFan(); };
+})();
+
+// ── 초기 Firebase 로드 (페이지 로드 1회) ─────────────
+if (typeof db !== 'undefined') {
+  db.ref('just/radiatorFan').once('value', function(snap) {
+    var data = snap.val();
+    if (data) {
+      setTimeout(function() { loadRadiatorFan(data); calcFanMode(); }, 300);
+    }
+  });
+}
+
+// ── 작업 완료 콘솔 검산 출력 ──────────────────────────
+(function fanSensitivitySelfTest() {
+  var CFM = 600, cnt = 1, W = 160, H = 290;
+  var A_heat = 2.0036 / 2; // 라디에이터 1개당 m²
+  var rha = 1.2, cpa = 1006, rhw = 1000, cpw = 4183;
+  var cases = calculateFanSensitivityCases(
+    CFM, cnt, W, H, 60, 200, 100,
+    A_heat, rha, cpa, rhw, 20, cpw, 100, 35, 0, 'auto', 150
+  );
+  var c = cases[2]; // 100% 시나리오
+
+  console.group('[JUST] 민감도 분석 검산 결과');
+  console.log('── 수정 파일 ──────────────────────────────────');
+  console.log('  js/radiator.js  : calculateFanSensitivityCases() + 민감도·동기화 로직 추가');
+  console.log('  js/storage.js   : S.radiatorFan 기본값 추가');
+  console.log('  index.html      : 민감도 분석 표 + 주의문구 섹션 추가');
+  console.log('  css/style.css   : .rad-sens* .rad-notice-* 스타일 추가');
+  console.log('── 추가된 계산식 ───────────────────────────────');
+  console.log('  calculateFanSensitivityCases(): 50/75/100% 적용률 3시나리오 반복 계산');
+  console.log('  (calculateRadiatorStage, calculateTwoStageRadiator 재사용)');
+  console.log('── 기존 계산과 달라진 점 ──────────────────────');
+  console.log('  없음. calcRadiator(), updateWindCard(), updateFanCard() 원본 무수정.');
+  console.log('  calcFanMode만 래핑하여 updateSensSection() + saveRadiatorFan() 연결.');
+  console.log('── 팬 모드 검산 (CFM 600, 코어 160×290, A_heat 2.0036m²) ─');
+  console.log('  실효 CFM       : ' + c.effectiveCFM.toFixed(0) + ' CFM');
+  console.log('  면풍속         : ' + c.v_face_ms.toFixed(2)  + ' m/s   (예상: ~6.10)');
+  console.log('  면풍속 km/h    : ' + c.v_face_kmh.toFixed(1) + ' km/h');
+  console.log('  적용 자동 U    : ' + c.U_applied.toFixed(1)  + ' W/m²·K  (예상: ~111)');
+  console.log('  총 방열량      : ' + c.Q_total_kW.toFixed(3) + ' kW  (예상: ~11 kW)');
+  console.log('── 남은 물리적 한계·가정 ──────────────────────');
+  console.log('  1. U 선형 보간  — 실험식이 아닌 면풍속 0~60km/h 범위 보간값');
+  console.log('  2. CFM 표기     — 자유풍량 기준, 라디에이터 장착 시 실측 필요');
+  console.log('  3. 직렬 2단     — 각 단 신선 외기 온도 가정, 공기 재순환 미고려');
+  console.log('  4. 교차류 공식  — Chang & Hsu 근사식 (양쪽 비혼합)');
+  console.log('  5. 압력손실     — 팬-라디에이터 상호 압력 특성 미반영');
+  console.groupEnd();
+})();
