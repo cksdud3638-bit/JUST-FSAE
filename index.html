@@ -1206,7 +1206,7 @@
   <div class="section-header">
     <div>
       <div class="section-title">댐퍼 세팅 계산기</div>
-      <div class="section-sub">임계 감쇠비 · 라이드 주파수 · 롤 강성 배분 · 클릭 수 추천</div>
+      <div class="section-sub">등가 감쇠비 · 라이드 주파수 · 스프링 롤 강성 · 공통 클릭 설정</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-ghost" onclick="resetDamperDefaults()" style="font-size:12px">기본값 복원</button>
@@ -1214,29 +1214,33 @@
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start">
+  <p id="dm-status" class="dm-error" role="status"></p><p id="dm-copy-status" class="dm-note" role="status"></p>
+  <div class="dm-layout">
 
     <!-- ═══════════════ LEFT: INPUT ═══════════════ -->
     <div style="display:flex;flex-direction:column;gap:12px">
 
       <!-- 차량 기본 파라미터 -->
       <div class="card" style="padding:18px">
-        <div class="dm-section-label">차량 기본 파라미터</div>
+        <div class="dm-section-label">차량 기본 파라미터 — 축 평균 간편 모드</div>
+<p class="dm-note">미검증 JUST 기본값 · 실차 측정 근거 미확인. 좌우 질량은 같다고 가정합니다.</p>
+<button class="btn-secondary" type="button" onclick="dmLoadCornerWeights()">코너웨이트 측정값 불러오기</button>
+<p id="dm-import-status" class="dm-note" role="status">운전자·주행 유체를 포함한 코너 질량(kg)이 필요합니다.</p>
 
         <div class="dm-row2" style="margin-bottom:10px">
           <div>
-            <label class="dm-lbl">총 중량 (kg)</label>
+            <label class="dm-lbl" for="dm-total_mass">총중량 M (kg) — 운전자·주행 유체 포함</label>
             <input id="dm-total_mass" type="number" class="form-control dm-inp" step="1">
           </div>
           <div>
-            <label class="dm-lbl">스프렁 매스 M_s (kg)</label>
-            <input id="dm-ms" type="number" class="form-control dm-inp" step="0.01">
+            <label class="dm-lbl" for="dm-ms">스프렁 매스(현가질량) M_s (kg) — 자동</label>
+            <input id="dm-ms" type="text" class="form-control" readonly>
           </div>
         </div>
 
         <div class="dm-row2" style="margin-bottom:10px">
           <div>
-            <label class="dm-lbl">무게 배분 프론트 (%)</label>
+            <label class="dm-lbl" for="dm-front_pct">전체 차량 정적 전륜 축중 비율 (%)</label>
             <input id="dm-front_pct" type="number" class="form-control dm-inp" step="0.1" min="1" max="99">
           </div>
           <div style="display:flex;flex-direction:column;gap:4px;justify-content:flex-end">
@@ -1249,11 +1253,11 @@
 
         <div class="dm-row2">
           <div>
-            <label class="dm-lbl">언스프렁 프론트 (kg)</label>
+            <label class="dm-lbl" for="dm-unsprung_f">전륜 언스프렁 매스(비현가질량) — 축 전체 (kg)</label>
             <input id="dm-unsprung_f" type="number" class="form-control dm-inp" step="0.001">
           </div>
           <div>
-            <label class="dm-lbl">언스프렁 리어 (kg)</label>
+            <label class="dm-lbl" for="dm-unsprung_r">후륜 언스프렁 매스(비현가질량) — 축 전체 (kg)</label>
             <input id="dm-unsprung_r" type="number" class="form-control dm-inp" step="0.001">
           </div>
         </div>
@@ -1261,31 +1265,32 @@
 
       <!-- 스프링 & 모션 레이시오 -->
       <div class="card" style="padding:18px">
-        <div class="dm-section-label">스프링 & 모션 레이시오</div>
+        <div class="dm-section-label">스프링 & 모션 레이시오</div><p class="dm-note">MR = 댐퍼 이동량 / 휠 이동량. 정적 차고 부근의 선형화된 값입니다. 스트로크별 변화·좌우 차이는 미반영이며 CAD/실측 근거가 필요합니다. MR·트랙: 미검증 JUST 기본값.</p>
 
         <div style="margin-bottom:10px">
-          <label class="dm-lbl">스프링 레이트 (N/mm) = 300 lbf/in</label>
-          <input id="dm-k_spring" type="number" class="form-control dm-inp" step="0.5">
+          <p class="dm-note">JUST 기본 프리셋: 전후 52.5 N/mm — 미검증 JUST 기본값. 스프링 표기·실측 확인 필요.</p>
+<div class="dm-row2"><div><label class="dm-lbl" for="dm-k_spring_f">전륜 스프링 레이트 (N/mm) = <span id="dm-spring-lbf-f">—</span> lbf/in</label><input id="dm-k_spring_f" class="form-control dm-inp" type="number" step="any"></div>
+<div><label class="dm-lbl" for="dm-k_spring_r">후륜 스프링 레이트 (N/mm) = <span id="dm-spring-lbf-r">—</span> lbf/in</label><input id="dm-k_spring_r" class="form-control dm-inp" type="number" step="any"></div></div>
         </div>
 
         <div class="dm-row2" style="margin-bottom:10px">
           <div>
-            <label class="dm-lbl">MR 프론트</label>
+            <label class="dm-lbl" for="dm-mr_f">MR 프론트</label>
             <input id="dm-mr_f" type="number" class="form-control dm-inp" step="0.01" min="0.01" max="2">
           </div>
           <div>
-            <label class="dm-lbl">MR 리어</label>
+            <label class="dm-lbl" for="dm-mr_r">MR 리어</label>
             <input id="dm-mr_r" type="number" class="form-control dm-inp" step="0.01" min="0.01" max="2">
           </div>
         </div>
 
         <div class="dm-row2">
           <div>
-            <label class="dm-lbl">트랙 프론트 (mm)</label>
+            <label class="dm-lbl" for="dm-track_f">트랙 프론트 (mm)</label>
             <input id="dm-track_f" type="number" class="form-control dm-inp" step="10">
           </div>
           <div>
-            <label class="dm-lbl">트랙 리어 (mm)</label>
+            <label class="dm-lbl" for="dm-track_r">트랙 리어 (mm)</label>
             <input id="dm-track_r" type="number" class="form-control dm-inp" step="10">
           </div>
         </div>
@@ -1294,25 +1299,35 @@
       <!-- 감쇠 기준값 -->
       <div class="card" style="padding:18px">
         <div class="dm-section-label">감쇠 기준 & 클릭 수</div>
+<p class="dm-note">미검증 JUST 기본값 — 실제 댐퍼 모델·클릭 수·측정 속도 미확인.</p>
+<div id="dm-structure-control"></div>
+<label class="dm-lbl" for="dm-dyno_mode">전후 데이터 구성</label>
+<select id="dm-dyno_mode" class="form-control dm-inp"><option value="shared">간편 모드: 전후 동일 댐퍼 데이터</option><option value="separate">고급 모드: 전후 별도 다이나모 데이터</option></select>
+<p class="dm-note">3-way는 압축 저속·고속 분리 / 리바운드 공통 구조만 지원합니다. 3/4-way는 다른 조절기를 고정한 측정 데이터와 독립성 가정이 필요합니다. 모델 확인 전에는 특정 구조로 단정하지 않습니다.</p>
+<label class="dm-lbl" for="dm-click_basis">클릭 기준</label>
+<select id="dm-click_basis" class="form-control dm-inp">
+<option value="hard">완전 잠금/Full Hard에서 풀어준 클릭 수</option>
+<option value="soft">Full Soft에서 잠근 클릭 수</option></select>
+<p class="dm-note">0~총 클릭 수를 검사합니다. 총 클릭 수는 1~10000 정수 (브라우저 검사 한도).</p>
 
         <div class="dm-row2" style="margin-bottom:10px">
           <div>
-            <label class="dm-lbl">저속 기준 V (mm/s)</label>
+            <label class="dm-lbl" for="dm-v_lo">저속 댐퍼 샤프트 속도 (mm/s)</label>
             <input id="dm-v_lo" type="number" class="form-control dm-inp" step="1">
           </div>
           <div>
-            <label class="dm-lbl">고속 기준 V (mm/s)</label>
+            <label class="dm-lbl" for="dm-v_hi">고속 댐퍼 샤프트 속도 (mm/s)</label>
             <input id="dm-v_hi" type="number" class="form-control dm-inp" step="10">
           </div>
         </div>
 
         <div class="dm-row2">
           <div>
-            <label class="dm-lbl">컴프레션 총 클릭</label>
+            <label class="dm-lbl" for="dm-clicks_comp">컴프레션 총 클릭</label>
             <input id="dm-clicks_comp" type="number" class="form-control dm-inp" step="1" min="1">
           </div>
           <div>
-            <label class="dm-lbl">리바운드 총 클릭</label>
+            <label class="dm-lbl" for="dm-clicks_reb">리바운드 총 클릭</label>
             <input id="dm-clicks_reb" type="number" class="form-control dm-inp" step="1" min="1">
           </div>
         </div>
@@ -1320,7 +1335,10 @@
 
       <!-- 감쇠력 입력 -->
       <div class="card" style="padding:18px">
-        <div class="dm-section-label">감쇠력 입력 (다이나모 기준)</div>
+        <div id="dm-dyno-label" class="dm-section-label">감쇠력 입력 (다이나모 기준)</div>
+<p class="dm-note">힘·측정 속도: 미검증 JUST 기본값. 방향별 힘의 크기(양수 N)를 입력합니다. 3/4-way의 Full Hard/Soft는 해당 조절기를 조작하고 다른 조절기는 고정한 상태의 힘입니다.</p>
+<p id="dm-speed-warning" class="dm-warn dm-warn-yellow" role="status"></p>
+<p class="dm-note">저속 샤프트 운동은 롤·피치·다이브 등의 차체 운동, 고속은 범프·연석 등의 입력과 관련됩니다 (<a href="https://www.penskeshocks.com/blog/how-to-read-a-shock-dyno-graph-to-gain-a-setup-advantage" target="_blank" rel="noopener">Penske 설명</a>). 차량 속도가 아닙니다. 25 mm/s는 마찰·히스테리시스 영향, 300 mm/s는 실제 시험 범위 포함 여부를 확인하세요. 보편 측정 기준이 아닙니다.</p>
 
         <!-- 저속 -->
         <div style="font-size:11px;color:#888;font-weight:600;margin-bottom:8px;letter-spacing:0.04em">저속 (<span id="dm-label-vlo">25</span> mm/s)</div>
@@ -1328,11 +1346,11 @@
           <div style="font-size:10px;color:#0088ff;margin-bottom:8px;font-weight:600">압축 (Compression)</div>
           <div class="dm-row2" style="margin-bottom:0">
             <div>
-              <label class="dm-lbl">Max (N)</label>
+              <label class="dm-lbl" for="dm-fc_max_lo">Full Hard 힘 (N)</label>
               <input id="dm-fc_max_lo" type="number" class="form-control dm-inp" step="1">
             </div>
             <div>
-              <label class="dm-lbl">Min (N)</label>
+              <label class="dm-lbl" for="dm-fc_min_lo">Full Soft 힘 (N)</label>
               <input id="dm-fc_min_lo" type="number" class="form-control dm-inp" step="1">
             </div>
           </div>
@@ -1341,11 +1359,11 @@
           <div style="font-size:10px;color:#66cc88;margin-bottom:8px;font-weight:600">신장 (Rebound)</div>
           <div class="dm-row2" style="margin-bottom:0">
             <div>
-              <label class="dm-lbl">Max (N)</label>
+              <label class="dm-lbl" for="dm-fr_max_lo">Full Hard 힘 (N)</label>
               <input id="dm-fr_max_lo" type="number" class="form-control dm-inp" step="1">
             </div>
             <div>
-              <label class="dm-lbl">Min (N)</label>
+              <label class="dm-lbl" for="dm-fr_min_lo">Full Soft 힘 (N)</label>
               <input id="dm-fr_min_lo" type="number" class="form-control dm-inp" step="1">
             </div>
           </div>
@@ -1357,11 +1375,11 @@
           <div style="font-size:10px;color:#0088ff;margin-bottom:8px;font-weight:600">압축 (Compression)</div>
           <div class="dm-row2" style="margin-bottom:0">
             <div>
-              <label class="dm-lbl">Max (N)</label>
+              <label class="dm-lbl" for="dm-fc_max_hi">Full Hard 힘 (N)</label>
               <input id="dm-fc_max_hi" type="number" class="form-control dm-inp" step="1">
             </div>
             <div>
-              <label class="dm-lbl">Min (N)</label>
+              <label class="dm-lbl" for="dm-fc_min_hi">Full Soft 힘 (N)</label>
               <input id="dm-fc_min_hi" type="number" class="form-control dm-inp" step="1">
             </div>
           </div>
@@ -1370,17 +1388,21 @@
           <div style="font-size:10px;color:#66cc88;margin-bottom:8px;font-weight:600">신장 (Rebound)</div>
           <div class="dm-row2" style="margin-bottom:0">
             <div>
-              <label class="dm-lbl">Max (N)</label>
+              <label class="dm-lbl" for="dm-fr_max_hi">Full Hard 힘 (N)</label>
               <input id="dm-fr_max_hi" type="number" class="form-control dm-inp" step="1">
             </div>
             <div>
-              <label class="dm-lbl">Min (N)</label>
+              <label class="dm-lbl" for="dm-fr_min_hi">Full Soft 힘 (N)</label>
               <input id="dm-fr_min_hi" type="number" class="form-control dm-inp" step="1">
             </div>
           </div>
         </div>
       </div>
 
+<details class="card dm-targets" style="padding:18px"><summary>고급 설정: 초기 목표값/사용자 설정값</summary><p class="dm-note">기존 초기값이며 보편 권장값이 아닙니다. 각 조절기의 저속·고속 목표를 함께 적용합니다.</p><div class="dm-row2"><div><label class="dm-lbl" for="dm-target_comp_lo_min">컴프레션 저속 ζ_eq 하한</label><input id="dm-target_comp_lo_min" class="form-control dm-inp" type="number" step="any" min="0"></div><div><label class="dm-lbl" for="dm-target_comp_lo_max">컴프레션 저속 ζ_eq 상한</label><input id="dm-target_comp_lo_max" class="form-control dm-inp" type="number" step="any" min="0"></div></div><div class="dm-row2"><div><label class="dm-lbl" for="dm-target_reb_lo_min">리바운드 저속 ζ_eq 하한</label><input id="dm-target_reb_lo_min" class="form-control dm-inp" type="number" step="any" min="0"></div><div><label class="dm-lbl" for="dm-target_reb_lo_max">리바운드 저속 ζ_eq 상한</label><input id="dm-target_reb_lo_max" class="form-control dm-inp" type="number" step="any" min="0"></div></div><div class="dm-row2"><div><label class="dm-lbl" for="dm-target_comp_hi_min">컴프레션 고속 ζ_eq 하한</label><input id="dm-target_comp_hi_min" class="form-control dm-inp" type="number" step="any" min="0"></div><div><label class="dm-lbl" for="dm-target_comp_hi_max">컴프레션 고속 ζ_eq 상한</label><input id="dm-target_comp_hi_max" class="form-control dm-inp" type="number" step="any" min="0"></div></div><div class="dm-row2"><div><label class="dm-lbl" for="dm-target_reb_hi_min">리바운드 고속 ζ_eq 하한</label><input id="dm-target_reb_hi_min" class="form-control dm-inp" type="number" step="any" min="0"></div><div><label class="dm-lbl" for="dm-target_reb_hi_max">리바운드 고속 ζ_eq 상한</label><input id="dm-target_reb_hi_max" class="form-control dm-inp" type="number" step="any" min="0"></div></div></details>
+<details id="dm-dyno-details" class="card dm-targets" style="padding:18px"><summary>고급: 조절기 클릭 수 · 시험 조건 · 전후 별도 데이터</summary>
+<p class="dm-note">모델명·온도·가스압·출처를 기록하세요. 분리 조절기 클릭 수에는 근거가 없어 기본값이 없습니다. 후륜 별도 숫자는 기존 JUST 프리셋 복사값이며 미검증입니다.</p>
+<div id="dm-dyno-extra"></div><div id="dm-rear-data" hidden></div></details>
     </div><!-- end left -->
 
     <!-- ═══════════════ RIGHT: RESULTS ═══════════════ -->
@@ -1392,49 +1414,49 @@
           <span class="dm-card-num">1</span>
           <div>
             <div style="font-size:14px;font-weight:600;color:#fff">기본 계산 요약</div>
-            <div style="font-size:11px;color:#555">K_wheel = K_spring × MR²  |  f = (1/2π)√(K_wheel/M_s)  |  C_crit = 2√(K_wheel × M_s)</div>
+            <div style="font-size:11px;color:#555">K_wheel = K_spring × MR²  |  f = (1/2π)√(K_wheel × 1000 / m_corner)  |  C_crit = 2√(K_wheel × 1000 × m_corner) / 1000</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="dm-results-grid">
           <div style="background:var(--card2);border-radius:8px;padding:14px">
             <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em">프론트 (MR = <span id="dm-lbl-mr-f">0.51</span>)</div>
             <div class="dm-kv-row"><span class="dm-kv-k">코너 스프렁</span><span class="dm-kv-v"><span id="dm-out-ms-f2">—</span> kg</span></div>
             <div class="dm-kv-row"><span class="dm-kv-k">K_wheel</span><span class="dm-kv-v blue"><span id="dm-out-kw-f">—</span> N/mm</span></div>
-            <div class="dm-kv-row"><span class="dm-kv-k">라이드 주파수</span><span class="dm-kv-v red"><span id="dm-out-freq-f">—</span> Hz</span></div>
+            <div class="dm-kv-row"><span class="dm-kv-k">타이어 강성 미포함 근사 라이드 주파수</span><span class="dm-kv-v red"><span id="dm-out-freq-f">—</span> Hz</span></div>
             <div class="dm-kv-row"><span class="dm-kv-k">C_crit</span><span class="dm-kv-v"><span id="dm-out-cc-f">—</span> N·s/mm</span></div>
           </div>
           <div style="background:var(--card2);border-radius:8px;padding:14px">
             <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em">리어 (MR = <span id="dm-lbl-mr-r">0.60</span>)</div>
             <div class="dm-kv-row"><span class="dm-kv-k">코너 스프렁</span><span class="dm-kv-v"><span id="dm-out-ms-r2">—</span> kg</span></div>
             <div class="dm-kv-row"><span class="dm-kv-k">K_wheel</span><span class="dm-kv-v blue"><span id="dm-out-kw-r">—</span> N/mm</span></div>
-            <div class="dm-kv-row"><span class="dm-kv-k">라이드 주파수</span><span class="dm-kv-v red"><span id="dm-out-freq-r">—</span> Hz</span></div>
+            <div class="dm-kv-row"><span class="dm-kv-k">타이어 강성 미포함 근사 라이드 주파수</span><span class="dm-kv-v red"><span id="dm-out-freq-r">—</span> Hz</span></div>
             <div class="dm-kv-row"><span class="dm-kv-k">C_crit</span><span class="dm-kv-v"><span id="dm-out-cc-r">—</span> N·s/mm</span></div>
           </div>
         </div>
       </div>
 
-      <!-- Card 2: 감쇠비 @ 저속 -->
+      <!-- Card 2: 등가 감쇠비 ζ_eq @ 저속 샤프트 -->
       <div class="card" style="padding:20px">
         <div class="dm-card-title">
           <span class="dm-card-num">2</span>
           <div>
-            <div style="font-size:14px;font-weight:600;color:#fff">감쇠비 @ 저속 (<span id="dm-title-vlo">25</span> mm/s)</div>
-            <div style="font-size:11px;color:#555">C_eff = F/V  |  C_wheel = C_eff × MR²  |  ζ = C_wheel / C_crit</div>
+            <div style="font-size:14px;font-weight:600;color:#fff">등가 감쇠비 ζ_eq @ 저속 샤프트 (<span id="dm-title-vlo">25</span> mm/s)</div>
+            <div style="font-size:11px;color:#555">C_eff = F/V  |  C_wheel = C_eff × MR²  |  ζ_eq = C_wheel / C_crit</div>
           </div>
         </div>
         <!-- 저속 테이블 -->
-        <div style="overflow-x:auto">
+        <div class="dm-table-scroll" tabindex="0" role="region" aria-label="등가 감쇠비 표">
           <table class="dm-table">
             <thead>
               <tr>
                 <th>구분</th>
-                <th style="color:#0088ff">압축 Max</th><th style="color:#4da6ff">압축 Min</th>
-                <th style="color:#66cc88">신장 Max</th><th style="color:#44bbaa">신장 Min</th>
+                <th style="color:#0088ff">압축 Full Hard</th><th style="color:#4da6ff">압축 Full Soft</th>
+                <th style="color:#66cc88">신장 Full Hard</th><th style="color:#44bbaa">신장 Full Soft</th>
               </tr>
               <tr style="font-size:9px;color:#444">
-                <td>권장 ζ 범위</td>
-                <td colspan="2" style="color:#0088ff">0.3 ~ 0.7</td>
-                <td colspan="2" style="color:#66cc88">0.6 ~ 1.2</td>
+                <td>사용자 목표 ζ_eq</td>
+                <td colspan="2" style="color:#0088ff"><span data-dm-target="comp_lo">—</span></td>
+                <td colspan="2" style="color:#66cc88"><span data-dm-target="reb_lo">—</span></td>
               </tr>
             </thead>
             <tbody>
@@ -1453,7 +1475,7 @@
                 <td><span id="dm-cw-f-reb_min_lo">—</span></td>
               </tr>
               <tr class="dm-zeta-row">
-                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ 프론트</span></td>
+                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ_eq 프론트</span></td>
                 <td><strong id="dm-z-f-comp_max_lo">—</strong></td>
                 <td><strong id="dm-z-f-comp_min_lo">—</strong></td>
                 <td><strong id="dm-z-f-reb_max_lo">—</strong></td>
@@ -1474,7 +1496,7 @@
                 <td><span id="dm-cw-r-reb_min_lo">—</span></td>
               </tr>
               <tr class="dm-zeta-row">
-                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ 리어</span></td>
+                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ_eq 리어</span></td>
                 <td><strong id="dm-z-r-comp_max_lo">—</strong></td>
                 <td><strong id="dm-z-r-comp_min_lo">—</strong></td>
                 <td><strong id="dm-z-r-reb_max_lo">—</strong></td>
@@ -1484,34 +1506,33 @@
           </table>
         </div>
         <div style="display:flex;gap:10px;margin-top:10px;font-size:10px;color:#555;flex-wrap:wrap">
-          <span style="color:#00cc66">■</span> 권장 범위 내
-          <span style="color:#ffaa00">■</span> 경계
+          <span style="color:#00cc66">■</span> 사용자 목표 범위 내
           <span style="color:#ff4444">■</span> 초과
           <span style="color:#4da6ff">■</span> 미달
         </div>
       </div>
 
-      <!-- Card 3: 감쇠비 @ 고속 -->
+      <!-- Card 3: 등가 감쇠비 ζ_eq @ 고속 샤프트 -->
       <div class="card" style="padding:20px">
         <div class="dm-card-title">
           <span class="dm-card-num">3</span>
           <div>
-            <div style="font-size:14px;font-weight:600;color:#fff">감쇠비 @ 고속 (<span id="dm-title-vhi">300</span> mm/s)</div>
-            <div style="font-size:11px;color:#555">C_eff = F/V  |  C_wheel = C_eff × MR²  |  ζ = C_wheel / C_crit</div>
+            <div style="font-size:14px;font-weight:600;color:#fff">등가 감쇠비 ζ_eq @ 고속 샤프트 (<span id="dm-title-vhi">300</span> mm/s)</div>
+            <div style="font-size:11px;color:#555">C_eff = F/V  |  C_wheel = C_eff × MR²  |  ζ_eq = C_wheel / C_crit</div>
           </div>
         </div>
-        <div style="overflow-x:auto">
+        <div class="dm-table-scroll" tabindex="0" role="region" aria-label="등가 감쇠비 표">
           <table class="dm-table">
             <thead>
               <tr>
                 <th>구분</th>
-                <th style="color:#0088ff">압축 Max</th><th style="color:#4da6ff">압축 Min</th>
-                <th style="color:#66cc88">신장 Max</th><th style="color:#44bbaa">신장 Min</th>
+                <th style="color:#0088ff">압축 Full Hard</th><th style="color:#4da6ff">압축 Full Soft</th>
+                <th style="color:#66cc88">신장 Full Hard</th><th style="color:#44bbaa">신장 Full Soft</th>
               </tr>
               <tr style="font-size:9px;color:#444">
-                <td>권장 ζ 범위</td>
-                <td colspan="2" style="color:#0088ff">0.2 ~ 0.5</td>
-                <td colspan="2" style="color:#66cc88">0.4 ~ 0.9</td>
+                <td>사용자 목표 ζ_eq</td>
+                <td colspan="2" style="color:#0088ff"><span data-dm-target="comp_hi">—</span></td>
+                <td colspan="2" style="color:#66cc88"><span data-dm-target="reb_hi">—</span></td>
               </tr>
             </thead>
             <tbody>
@@ -1530,7 +1551,7 @@
                 <td><span id="dm-cw-f-reb_min_hi">—</span></td>
               </tr>
               <tr class="dm-zeta-row">
-                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ 프론트</span></td>
+                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ_eq 프론트</span></td>
                 <td><strong id="dm-z-f-comp_max_hi">—</strong></td>
                 <td><strong id="dm-z-f-comp_min_hi">—</strong></td>
                 <td><strong id="dm-z-f-reb_max_hi">—</strong></td>
@@ -1551,7 +1572,7 @@
                 <td><span id="dm-cw-r-reb_min_hi">—</span></td>
               </tr>
               <tr class="dm-zeta-row">
-                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ 리어</span></td>
+                <td class="dm-row-hdr"><span style="font-size:10px;font-weight:700;color:#fff">ζ_eq 리어</span></td>
                 <td><strong id="dm-z-r-comp_max_hi">—</strong></td>
                 <td><strong id="dm-z-r-comp_min_hi">—</strong></td>
                 <td><strong id="dm-z-r-reb_max_hi">—</strong></td>
@@ -1561,8 +1582,7 @@
           </table>
         </div>
         <div style="display:flex;gap:10px;margin-top:10px;font-size:10px;color:#555;flex-wrap:wrap">
-          <span style="color:#00cc66">■</span> 권장 범위 내
-          <span style="color:#ffaa00">■</span> 경계
+          <span style="color:#00cc66">■</span> 사용자 목표 범위 내
           <span style="color:#ff4444">■</span> 초과
           <span style="color:#4da6ff">■</span> 미달
         </div>
@@ -1573,17 +1593,17 @@
         <div class="dm-card-title">
           <span class="dm-card-num">4</span>
           <div>
-            <div style="font-size:14px;font-weight:600;color:#fff">전/후 롤 강성 배분</div>
-            <div style="font-size:11px;color:#555">K_φ = K_wheel × (Track/2)²  |  FSAE 권장: 전 60~70%</div>
+            <div style="font-size:14px;font-weight:600;color:#fff">스프링에 의한 롤 강성 배분(ARB 제외)</div>
+            <div style="font-size:11px;color:#555">K_φ = 2 × K_wheel × (Track/2)² [N·mm/rad]</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="dm-roll-grid">
           <div style="background:var(--card2);border-radius:7px;padding:12px;text-align:center">
-            <div style="font-size:10px;color:#555;margin-bottom:4px">전 K_φ (×10⁶ N·mm)</div>
+            <div style="font-size:10px;color:#555;margin-bottom:4px">전 K_φ (×10⁶ N·mm/rad)</div>
             <div style="font-size:18px;font-weight:700;color:#4da6ff" id="dm-out-kphi-f">—</div>
           </div>
           <div style="background:var(--card2);border-radius:7px;padding:12px;text-align:center">
-            <div style="font-size:10px;color:#555;margin-bottom:4px">후 K_φ (×10⁶ N·mm)</div>
+            <div style="font-size:10px;color:#555;margin-bottom:4px">후 K_φ (×10⁶ N·mm/rad)</div>
             <div style="font-size:18px;font-weight:700;color:#66cc88" id="dm-out-kphi-r">—</div>
           </div>
           <div style="background:rgba(255,0,0,0.08);border-radius:7px;padding:12px;text-align:center;border:1px solid rgba(255,0,0,0.2)">
@@ -1600,74 +1620,25 @@
             <div id="dm-roll-bar" style="height:100%;background:linear-gradient(90deg,var(--red),#ff6644);border-radius:4px;transition:width 0.3s;width:65%"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:9px;color:#444;margin-top:3px">
-            <span>0%</span><span style="color:#666">60%</span><span style="color:#666">70%</span><span>100%</span>
+            <span>0%</span><span>100%</span>
           </div>
         </div>
-        <div id="dm-roll-warn" class="dm-warn dm-warn-green">✓ FSAE 권장 범위 내 (전 60~70%)</div>
+        <div class="dm-row2">
+<div><label class="dm-lbl" for="dm-roll_min">선택: 전륜 목표 하한 (%)</label><input id="dm-roll_min" type="number" class="form-control dm-inp" placeholder="미설정" step="any"></div>
+<div><label class="dm-lbl" for="dm-roll_max">선택: 전륜 목표 상한 (%)</label><input id="dm-roll_max" type="number" class="form-control dm-inp" placeholder="미설정" step="any"></div></div>
+<div id="dm-roll-warn" class="dm-warn dm-warn-yellow">—</div>
+<p class="dm-note">타이어 하중 민감도 기준으로 전륜 롤 강성/롤 모멘트 배분 증가는 일반적으로 언더스티어, 후륜 증가는 오버스티어 방향입니다. 타이어, 캠버 변화, 롤센터, 트랙 차이 등에 따라 실제 결과가 달라질 수 있습니다.</p>
       </div>
 
-      <!-- Card 5: 클릭 수 추천 -->
-      <div class="card" style="padding:20px">
-        <div class="dm-card-title">
-          <span class="dm-card-num">5</span>
-          <div>
-            <div style="font-size:14px;font-weight:600;color:#fff">클릭 수 추천</div>
-            <div style="font-size:11px;color:#555">선형 감쇠 가정 · 권장 ζ 범위 달성 클릭</div>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-          <!-- Front -->
-          <div style="background:var(--card2);border-radius:8px;padding:14px">
-            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em">프론트</div>
-            <div class="dm-rec-grid">
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#0088ff">컴프 저속<br><span style="color:#444;font-size:9px">ζ 0.3~0.7</span></div>
-                <div id="dm-rec-f-comp-lo" class="dm-rec dm-rec-ok">—</div>
-              </div>
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#4da6ff">컴프 고속<br><span style="color:#444;font-size:9px">ζ 0.2~0.5</span></div>
-                <div id="dm-rec-f-comp-hi" class="dm-rec dm-rec-ok">—</div>
-              </div>
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#66cc88">리바 저속<br><span style="color:#444;font-size:9px">ζ 0.6~1.2</span></div>
-                <div id="dm-rec-f-reb-lo" class="dm-rec dm-rec-ok">—</div>
-              </div>
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#44bbaa">리바 고속<br><span style="color:#444;font-size:9px">ζ 0.4~0.9</span></div>
-                <div id="dm-rec-f-reb-hi" class="dm-rec dm-rec-ok">—</div>
-              </div>
-            </div>
-          </div>
-          <!-- Rear -->
-          <div style="background:var(--card2);border-radius:8px;padding:14px">
-            <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em">리어</div>
-            <div class="dm-rec-grid">
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#0088ff">컴프 저속<br><span style="color:#444;font-size:9px">ζ 0.3~0.7</span></div>
-                <div id="dm-rec-r-comp-lo" class="dm-rec dm-rec-ok">—</div>
-              </div>
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#4da6ff">컴프 고속<br><span style="color:#444;font-size:9px">ζ 0.2~0.5</span></div>
-                <div id="dm-rec-r-comp-hi" class="dm-rec dm-rec-ok">—</div>
-              </div>
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#66cc88">리바 저속<br><span style="color:#444;font-size:9px">ζ 0.6~1.2</span></div>
-                <div id="dm-rec-r-reb-lo" class="dm-rec dm-rec-ok">—</div>
-              </div>
-              <div class="dm-rec-cell">
-                <div class="dm-rec-label" style="color:#44bbaa">리바 고속<br><span style="color:#444;font-size:9px">ζ 0.4~0.9</span></div>
-                <div id="dm-rec-r-reb-hi" class="dm-rec dm-rec-ok">—</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div id="dm-balance-guide" class="dm-guide dm-guide-green">
-          <strong>이상적인 배분:</strong> 전/후 롤 강성이 FSAE 권장 범위 내에 있습니다.
-        </div>
-      </div>
-
+<div class="card" style="padding:20px">
+<div class="dm-card-title"><span class="dm-card-num">5</span><div><div class="dm-section-label">조절 방식별 클릭 설정 (끝점 선형 보간 근사)</div><p id="dm-click-basis-label" class="dm-note"></p></div></div>
+<div class="dm-results-grid">
+<div class="dm-click-card"><div class="dm-section-label">프론트</div><p id="dm-basis-f" class="dm-note"></p><div id="dm-clicks-f" class="dm-rec-grid"></div></div>
+<div class="dm-click-card"><div class="dm-section-label">리어</div><p id="dm-basis-r" class="dm-note"></p><div id="dm-clicks-r" class="dm-rec-grid"></div></div>
+</div>
+<p id="dm-model-note" class="dm-note"></p>
+<div id="dm-balance-guide" class="dm-guide dm-guide-yellow"></div>
+</div>
     </div><!-- end right -->
   </div><!-- end grid -->
 </div><!-- end tab-damper -->
