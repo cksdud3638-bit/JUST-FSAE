@@ -18,20 +18,20 @@ function renderHome() {
   if (el('home-insp-bar'))  el('home-insp-bar').style.width  = rate + '%';
 
   // 2. 남은 예산
-  let totalLimit = 0, totalSpent = 0;
-  if (S.budget && S.budget.limits)   Object.values(S.budget.limits).forEach(v => { totalLimit += (v || 0); });
-  if (S.budget && S.budget.expenses) S.budget.expenses.forEach(e => { totalSpent += (e.amount || 0); });
+  const ledger = pbData || PB.migrate(S);
+  const ledgerTotals = PB.totals(ledger);
+  const totalLimit = ledger.overallBudget, totalSpent = ledgerTotals.actual;
   const remain = totalLimit - totalSpent;
-  const bRate  = totalLimit > 0 ? Math.round(totalSpent / totalLimit * 100) : 0;
+  const bRate = Number.isFinite(ledgerTotals.usage) ? Math.round(ledgerTotals.usage) + '%' : '예산 없음';
   if (el('home-budget-remain')) el('home-budget-remain').textContent = '₩' + remain.toLocaleString();
   if (el('home-budget-sub'))    el('home-budget-sub').textContent    = `지출 ₩${totalSpent.toLocaleString()} / 한도 ₩${totalLimit.toLocaleString()}`;
-  if (el('home-budget-rate'))   el('home-budget-rate').textContent   = bRate + '%';
+  if (el('home-budget-rate'))   el('home-budget-rate').textContent   = bRate;
   if (el('home-budget-detail')) el('home-budget-detail').textContent = totalLimit > 0 ? `₩${totalSpent.toLocaleString()} 사용` : '예산 미설정';
 
   // 3. 부품 총 중량
-  const totalWeight = S.parts.reduce((a, p) => a + (p.weight || 0) * (p.qty || 1), 0);
+  const totalWeight = ledgerTotals.weight;
   const catCount    = [...new Set(S.parts.map(p => p.cat))].length;
-  if (el('home-parts-weight')) el('home-parts-weight').textContent = totalWeight.toLocaleString() + ' g';
+  if (el('home-parts-weight')) el('home-parts-weight').textContent = pbWeight(totalWeight);
   if (el('home-parts-sub'))    el('home-parts-sub').textContent    = S.parts.length ? `${S.parts.length}개 부품 · ${catCount}개 카테고리` : '부품 없음';
 
   // 4. 마지막 테스트
@@ -111,6 +111,7 @@ function renderHome() {
 // TAB SWITCHING
 // ═══════════════════════════════════════════════
 function switchTab(name, btn) {
+  if (['budget','parts','weight'].includes(name)) { name='parts-budget'; btn=document.querySelector('[data-tab="parts-budget"]'); }
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -121,13 +122,14 @@ function switchTab(name, btn) {
   if (name === 'fuel')     { calcFuel(); }
   if (name === 'feedback') { renderFeedbackCharts(); renderSetupHistory(); populateSetupLinks(); populateTestLogLinks(); }
   if (name === 'testlog')  { renderTestLogs(); }
-  if (name === 'budget')   { renderBudget(); }
+  if (name === 'parts-budget') { renderPartsBudget(); renderWeightDistribution(); }
   if (name === 'parts')    { renderParts(); updateSliderFill(); updateWheelbaseMarkers(); }
   if (name === 'damper')   { if (typeof initDamper   === 'function') initDamper(); }
   if (name === 'radiator') { if (typeof calcRadiator === 'function') calcRadiator(); }
 }
 
 function switchTabByName(name) {
+  if (['budget','parts','weight'].includes(name)) name='parts-budget';
   const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
   if (btn) switchTab(name, btn);
 }
@@ -142,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.value = today;
   });
 
+  initPartsBudget();
   buildInspection();
   renderHome();
   updateSliderFill();
@@ -153,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.feedbacks)      S.feedbacks      = data.feedbacks;
     if (data.setupHistory)   S.setupHistory   = data.setupHistory;
     if (data.budget)         S.budget         = data.budget;
-    if (data.parts)          S.parts          = data.parts;
+    pbReceive(data);
     if (data.inspectionMeta) S.inspectionMeta = data.inspectionMeta;
     if (data.cornerWeights)  { S.cornerWeights = data.cornerWeights; restoreCornerWeights(); }
     if (data.wheelbase != null) {
@@ -188,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     renderLapTable(); renderDriverStats(); renderTestLogs(); renderSetupHistory();
     populateSetupLinks(); populateTestSessions(); populateTestLogLinks();
-    calcFuel(); renderBudget(); renderParts(); renderHome();
+    calcFuel(); renderPartsBudget(); renderParts(); renderHome();
   });
 
   // Remote-change detection: flag when another user triggers an update
@@ -225,8 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-export').addEventListener('click', exportData);
   document.getElementById('btn-import').addEventListener('click', importData);
-  document.getElementById('btn-set-budget-limit').addEventListener('click', setBudgetLimit);
-  document.getElementById('btn-add-expense').addEventListener('click', addExpense);
   document.getElementById('comp-date').addEventListener('change', function() {
     db.ref('just/compDate').set(this.value);
     renderReport();

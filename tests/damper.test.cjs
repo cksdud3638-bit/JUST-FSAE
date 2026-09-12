@@ -179,18 +179,20 @@ test('optional dyno metadata validation and copy preserve source information', (
  const r=calc({model:'Test damper',temperature:40,gas_pressure:5,source:'2026-09-10 sheet A',other_settings:'rebound 5 out'}).result;
  assert.match(dmFormatResult(r),/Test damper/);assert.match(dmFormatResult(r),/40 °C/);assert.match(dmFormatResult(r),/sheet A/);
 });
-test('shared save/export/import keep original schema; damper calculations do not write shared state', async () => {
+test('shared backup supports unified ledger; damper calculations do not write shared state', async () => {
   const writes = []; let blob;
   const context = vm.createContext({
-    firebase: { initializeApp() {}, database: () => ({ ref: path => ({ set: value => writes.push([path, value]) }) }) },
+    firebase: { initializeApp() {}, database: () => ({ ref: path => ({ set: value => writes.push([path, value]), update: async value => writes.push([path,value]) }) }) },
     window: { addEventListener() {} }, navigator: { onLine: true },
     document: { getElementById: () => null, createElement: () => ({ click() {} }) },
     Blob, URL: { createObjectURL: b => { blob = b; return 'blob:test'; } },
     setTimeout: () => 1, clearTimeout() {}, confirm: () => true, alert() {},
     FileReader: class { readAsText(file) { this.onload({ target: { result: file } }); } },
+    renderHome() {}, renderPartsBudget() {},
     buildInspection() {}, renderLapTable() {}, renderDriverStats() {}, renderParts() {}, renderTestLogs() {}, renderSetupHistory() {}, populateSetupLinks() {}, calcFuel() {},
   });
   vm.runInContext(fs.readFileSync('js/storage.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('js/parts-budget.js', 'utf8'), context);
   vm.runInContext("S.parts = [{name:'test',weight:123,qty:2}]; save('parts');", context);
   assert.equal(writes[0][0], 'just/parts'); assert.equal(writes[0][1][0].weight, 123);
   const before = vm.runInContext('JSON.stringify(S)', context);
@@ -199,9 +201,10 @@ test('shared save/export/import keep original schema; damper calculations do not
   assert.equal(vm.runInContext('JSON.stringify(S)', context), before); assert.equal(writes.length, 3);
   await vm.runInContext('exportData()', context);
   const exported = JSON.parse(await blob.text());
-  assert.equal(exported.version, '1.1'); assert.equal(exported.parts[0].weight, 123);
+  assert.equal(exported.version, '2.0'); assert.equal(exported.parts[0].weight, 123);
   assert.ok(!Object.keys(exported).some(k => /damper|dm/.test(k)));
   context.fixture = JSON.stringify(exported);
   vm.runInContext("S.parts = []; handleImport({files:[fixture], value:'fixture.json'});", context);
+  await new Promise(resolve=>setImmediate(resolve));
   assert.equal(vm.runInContext('S.parts[0].weight', context), 123);
 });

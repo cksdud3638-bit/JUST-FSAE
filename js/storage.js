@@ -94,7 +94,7 @@ if (!navigator.onLine) setSyncState('offline');
 // ═══════════════════════════════════════════════
 async function exportData() {
   const data = {
-    version: '1.1',
+    version: '2.0',
     exported: new Date().toISOString(),
     inspection: S.inspection,
     inspectionMeta: S.inspectionMeta,
@@ -103,6 +103,8 @@ async function exportData() {
     feedbacks: S.feedbacks,
     setupHistory: S.setupHistory,
     parts: S.parts,
+    budget: S.budget,
+    partsBudget: pbData || PB.migrate(S),
     cornerWeights: S.cornerWeights,
     wheelbase: S.wheelbase,
     targetFrontPct: S.targetFrontPct,
@@ -138,22 +140,34 @@ function handleImport(input) {
   if (!file) return;
   if (!confirm('기존 데이터가 덮어씌워집니다. 계속할까요?')) { input.value = ''; return; }
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const data = JSON.parse(e.target.result);
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error('지원하지 않는 백업입니다.');
+      if(data.reportType) throw Error('이 파일은 보고서입니다. 상단 저장 버튼으로 만든 전체 JSON 백업을 선택하세요.');
+      const importedLedger = PB.fromBackup(data,pbData || PB.migrate(S));
+      // Validate first; write all imported keys atomically, retaining absent keys.
+      const keys=['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','budget','cornerWeights','wheelbase','targetFrontPct','driverConfig','fuelConfig'];
+      const updates=Object.fromEntries(keys.filter(k=>data[k]!==undefined).map(k=>[k,data[k]]));
+      updates.partsBudget=importedLedger;
+      setSyncState('saving');
+      await db.ref('just').update(updates);
+      S.budget=data.budget ?? S.budget;
+      pbReceive({...S,partsBudget:importedLedger});
+      setSyncState('saved');
       if (data.inspection     !== undefined) S.inspection     = data.inspection;
       if (data.inspectionMeta !== undefined) S.inspectionMeta = data.inspectionMeta;
       if (data.lapTimes       !== undefined) S.lapTimes       = data.lapTimes;
       if (data.testLogs       !== undefined) S.testLogs       = data.testLogs;
       if (data.feedbacks      !== undefined) S.feedbacks      = data.feedbacks;
       if (data.setupHistory   !== undefined) S.setupHistory   = data.setupHistory;
-      if (data.parts          !== undefined) S.parts          = data.parts;
+
       if (data.cornerWeights  !== undefined) S.cornerWeights  = data.cornerWeights;
       if (data.wheelbase      !== undefined) S.wheelbase      = data.wheelbase;
       if (data.targetFrontPct !== undefined) S.targetFrontPct = data.targetFrontPct;
       if (data.driverConfig   !== undefined) S.driverConfig   = data.driverConfig;
       if (data.fuelConfig     !== undefined) S.fuelConfig     = data.fuelConfig;
-      ['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','cornerWeights','wheelbase','targetFrontPct','driverConfig','fuelConfig'].forEach(k => save(k));
+      renderHome();
       buildInspection();
       if (typeof restoreDriverFuelInputs === 'function') restoreDriverFuelInputs();
       renderLapTable();

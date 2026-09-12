@@ -50,7 +50,7 @@ function calcFuel() {
   }
 
   // 부품 무게 연동 — 예상 차량 중량
-  const partsWeight = S.parts.reduce((a, p) => a + (p.weight || 0) * (p.qty || 1), 0);
+  const partsWeight = S.parts.reduce((a, p) => a + (p.weight || 0) * (p.qty ?? 1), 0);
   const fuelWeight  = Math.round(totalFuel * 740);
   const totalVehWeight = partsWeight + fuelWeight;
   const setFuelEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };

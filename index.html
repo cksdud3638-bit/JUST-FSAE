@@ -44,10 +44,9 @@
   <button class="tab-btn" data-tab="fuel"><span class="tab-number">3</span>연료 전략</button>
   <button class="tab-btn" data-tab="testlog"><span class="tab-number">4</span>테스트 일지</button>
   <button class="tab-btn" data-tab="feedback"><span class="tab-number">5</span>드라이버 피드백</button>
-  <button class="tab-btn" data-tab="budget"><span class="tab-number">6</span>예산 관리</button>
-  <button class="tab-btn" data-tab="parts"><span class="tab-number">7</span>부품 무게/비용</button>
-  <button class="tab-btn" data-tab="damper"><span class="tab-number">8</span>댐퍼 세팅 계산기</button>
-  <button class="tab-btn" data-tab="radiator"><span class="tab-number">9</span>라디에이터 계산기</button>
+  <button class="tab-btn" data-tab="parts-budget"><span class="tab-number">6</span>부품·예산 관리</button>
+  <button class="tab-btn" data-tab="damper"><span class="tab-number">7</span>댐퍼 세팅 계산기</button>
+  <button class="tab-btn" data-tab="radiator"><span class="tab-number">8</span>라디에이터 계산기</button>
 </nav>
 
 <!-- MAIN CONTENT -->
@@ -422,7 +421,7 @@
             <div id="fuel-total-weight" style="font-size:22px;font-weight:800;color:#fff">0 kg</div>
           </div>
         </div>
-        <div style="font-size:11px;color:#555;margin-top:10px;text-align:center">* 연료 밀도 0.74 kg/L 기준 · 부품 무게/비용 탭의 등록 데이터 반영</div>
+        <div style="font-size:11px;color:#555;margin-top:10px;text-align:center">* 연료 밀도 0.74 kg/L 기준 · 부품·예산 관리의 등록 데이터 반영</div>
       </div>
 
       <div class="card mt-4">
@@ -759,289 +758,22 @@
 <!-- ═══════════════════════════════════════════════
      TAB 6: BUDGET
 ═══════════════════════════════════════════════ -->
-<div id="tab-budget" class="tab-pane">
-  <div class="section-header">
-    <div>
-      <div class="section-title">예산 관리</div>
-      <div class="section-sub">파트별 예산 한도 및 지출 내역 실시간 공유</div>
-    </div>
-    <div class="flex gap-3">
-      <button class="btn btn-ghost btn-sm" onclick="exportBudgetPDF()">⬇ PDF 내보내기</button>
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="grid-4 mb-6">
-    <div class="stat-card">
-      <div class="stat-label">총 예산</div>
-      <div class="stat-value" id="b-total-budget">₩0</div>
-      <div class="stat-sub">설정된 파트 합산</div>
-    </div>
-    <div class="stat-card red">
-      <div class="stat-label">총 지출</div>
-      <div class="stat-value" id="b-total-spent">₩0</div>
-      <div class="stat-sub">전체 지출 합산</div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-label">잔액</div>
-      <div class="stat-value" id="b-total-remain">₩0</div>
-      <div class="stat-sub">남은 예산</div>
-    </div>
-    <div class="stat-card yellow">
-      <div class="stat-label">사용률</div>
-      <div class="stat-value" id="b-usage-rate">0%</div>
-      <div class="stat-sub">전체 예산 대비</div>
-      <div class="stat-bar"><div class="stat-bar-fill" id="b-usage-bar" style="width:0%;background:#ffaa00"></div></div>
-    </div>
-  </div>
-
-  <div class="grid-2 mb-6">
-    <!-- Budget limits -->
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>파트별 예산 한도</div>
-      <div id="budget-limits-list" style="min-height:60px"></div>
-      <div class="divider"></div>
-      <div class="flex gap-3" style="flex-wrap:wrap">
-        <select class="form-control" id="bl-part" style="flex:1;min-width:100px">
-          <option value="">파트 선택</option>
-          <option>섀시</option><option>서스펜션</option><option>파워트레인</option>
-          <option>냉각·연료</option><option>브레이크</option><option>조향</option>
-          <option>전장</option><option>바디·공력</option><option>공용부품</option><option>기타</option>
-        </select>
-        <input type="number" class="form-control" id="bl-amount" placeholder="한도 (원)" style="flex:1;min-width:100px">
-        <button class="btn btn-primary btn-sm" id="btn-set-budget-limit">설정</button>
-      </div>
-    </div>
-    <!-- Budget chart -->
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>파트별 예산 현황</div>
-      <div class="chart-wrap"><canvas id="budget-chart"></canvas></div>
-    </div>
-  </div>
-
-  <!-- Monthly chart -->
-  <div class="card mb-6">
-    <div class="card-title"><span class="dot"></span>월별 지출 추이</div>
-    <div class="chart-wrap"><canvas id="monthly-chart"></canvas></div>
-  </div>
-
-  <div class="grid-2">
-    <!-- Expense form -->
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>지출 내역 입력</div>
-      <div class="form-group"><label>날짜</label><input type="date" class="form-control" id="exp-date"></div>
-      <div class="form-group"><label>파트</label>
-        <select class="form-control" id="exp-part">
-          <option value="">파트 선택</option>
-          <option>섀시</option><option>서스펜션</option><option>파워트레인</option>
-          <option>냉각·연료</option><option>브레이크</option><option>조향</option>
-          <option>전장</option><option>바디·공력</option><option>공용부품</option><option>기타</option>
-        </select>
-      </div>
-      <div class="form-group"><label>품목</label><input type="text" class="form-control" id="exp-item" placeholder="품목명"></div>
-      <div class="form-group"><label>금액 (원)</label><input type="number" class="form-control" id="exp-amount" placeholder="0"></div>
-      <div class="form-group"><label>담당자</label><input type="text" class="form-control" id="exp-person" placeholder="담당자"></div>
-      <div class="form-group">
-        <label>무게 변화 (g, 선택) — 교체 후 +증가 / -감소</label>
-        <input type="number" class="form-control" id="exp-weight-delta" placeholder="예: -120 또는 +85">
-      </div>
-      <button class="btn btn-primary w-full" id="btn-add-expense">지출 추가</button>
-    </div>
-    <!-- Expense table -->
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>지출 내역</div>
-      <div style="overflow-x:auto">
-        <table class="expense-table">
-          <thead><tr><th>날짜</th><th>파트</th><th>품목</th><th>금액</th><th>담당자</th><th>무게변화</th><th></th></tr></thead>
-          <tbody id="expense-tbody"></tbody>
-        </table>
-        <div class="empty-state" id="expense-empty"><div class="empty-icon">💸</div><p>지출 내역이 없습니다</p></div>
-        <div id="budget-weight-delta-summary" style="display:none;font-size:12px;font-weight:600;text-align:right;padding:8px 4px;border-top:1px solid #1e1e1e;margin-top:8px"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════
-     TAB 7: PARTS WEIGHT/COST CALCULATOR
-═══════════════════════════════════════════════ -->
-<div id="tab-parts" class="tab-pane">
-  <div class="section-header">
-    <div>
-      <div class="section-title">부품 무게/비용 계산기</div>
-      <div class="section-sub">카테고리별 부품 무게 및 비용 통합 관리</div>
-    </div>
-  </div>
-
-  <!-- 전체 요약 stat cards -->
-  <div class="grid-4 mb-6">
-    <div class="stat-card red">
-      <div class="stat-label">등록 부품 총중량</div>
-      <div class="stat-value" id="pt-total-weight">0</div>
-      <div class="stat-sub" id="pt-weight-diff" style="color:#555">—</div>
-      <div class="stat-bar"><div class="stat-bar-fill" id="pt-weight-bar" style="width:0%"></div></div>
-    </div>
-    <div class="stat-card yellow">
-      <div class="stat-label">총 비용</div>
-      <div class="stat-value" id="pt-total-cost">0</div>
-      <div class="stat-sub">원</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">등록 부품 수</div>
-      <div class="stat-value" id="pt-total-count">0</div>
-      <div class="stat-sub">개 (수량 합산)</div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-label">카테고리 수</div>
-      <div class="stat-value" id="pt-cat-count">0</div>
-      <div class="stat-sub">개</div>
-    </div>
-  </div>
-
-  <div class="grid-2 mb-6">
-    <!-- 입력 폼 -->
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>부품 추가</div>
-      <div class="form-group">
-        <label>부품명</label>
-        <input type="text" class="form-control" id="pt-name" placeholder="예: 프론트 서스펜션 암">
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>카테고리</label>
-          <select class="form-control" id="pt-cat">
-            <option>섀시</option>
-            <option>서스펜션</option>
-            <option>파워트레인</option>
-            <option>냉각·연료</option>
-            <option>브레이크</option>
-            <option>조향</option>
-            <option>전장</option>
-            <option>바디·공력</option>
-            <option>공용부품</option>
-            <option>기타</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>수량</label>
-          <input type="number" class="form-control" id="pt-qty" placeholder="1" min="1" value="1">
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>무게 (g / 개)</label>
-          <input type="number" class="form-control" id="pt-weight" placeholder="0" min="0">
-        </div>
-        <div class="form-group">
-          <label>비용 (원 / 개)</label>
-          <input type="number" class="form-control" id="pt-cost" placeholder="0" min="0">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>메모</label>
-        <input type="text" class="form-control" id="pt-note" placeholder="재질, 제조사 등 (선택)">
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>목표 총중량 (g)</label>
-          <input type="number" class="form-control" id="pt-target-weight" placeholder="예: 180000" oninput="renderParts()">
-        </div>
-        <div class="form-group">
-          <label>무게 유형</label>
-          <select class="form-control" id="pt-value-type">
-            <option value="측정">측정값</option>
-            <option value="카탈로그">카탈로그값</option>
-            <option value="추정">추정값</option>
-          </select>
-        </div>
-      </div>
-      <div style="margin-bottom:12px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="pt-installed"> 설치 완료
-        </label>
-      </div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:600;color:#666;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px">부품 위치 (전후 배분 계산용 · 선택)</div>
-      <div class="pos-guide">앞차축을 0mm로 하며, 차량 뒤쪽은 양수(+), 앞차축보다 앞쪽은 음수(−)</div>
-      <div class="form-group">
-        <label>앞차축 기준 위치 (mm)</label>
-        <div class="pos-slider-wrap">
-          <div class="pos-marker-layer">
-            <div class="pos-axle-mark" id="pos-mark-front" style="left:21.43%">
-              <div class="pos-axle-mark-top">앞차축<br><span>0</span></div>
-              <div class="pos-axle-mark-line"></div>
-            </div>
-            <div class="pos-axle-mark" id="pos-mark-rear" style="left:78.57%">
-              <div class="pos-axle-mark-top">뒤차축<br><span id="pos-wb-label">1600</span></div>
-              <div class="pos-axle-mark-line"></div>
-            </div>
-          </div>
-          <input type="range" class="pos-slider" id="pt-pos-slider"
-            min="-600" max="2200" value="0" step="10"
-            oninput="syncPosSlider('slider')">
-        </div>
-        <div class="pos-num-row">
-          <input type="number" class="form-control" id="pt-axle-pos"
-            value="0" step="10" placeholder="0" style="flex:1"
-            oninput="syncPosSlider('num')">
-          <span class="pos-unit">mm</span>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>위치값 유형</label>
-        <select class="form-control" id="pt-pos-type">
-          <option value="실측">실측</option>
-          <option value="CAD">CAD 측정</option>
-          <option value="추정">추정</option>
-        </select>
-      </div>
-      <button class="btn btn-primary w-full" onclick="addPart()">+ 부품 추가</button>
-    </div>
-
-    <!-- 파이 차트 2개 -->
-    <div style="display:flex;flex-direction:column;gap:16px">
-      <div class="card" style="flex:1">
-        <div class="card-title"><span class="dot"></span>카테고리별 무게 비율</div>
-        <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center">
-          <canvas id="partsWeightChart" style="max-height:200px"></canvas>
-        </div>
-      </div>
-      <div class="card" style="flex:1">
-        <div class="card-title"><span class="dot"></span>카테고리별 비용 비율</div>
-        <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center">
-          <canvas id="partsCostChart" style="max-height:200px"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 카테고리별 합산 -->
-  <div class="card mb-6">
-    <div class="card-title"><span class="dot"></span>카테고리별 합산</div>
-    <div id="parts-cat-summary">
-      <div class="empty-state"><div class="empty-icon">⚙️</div><p>부품을 추가하면 카테고리 합산이 표시됩니다</p></div>
-    </div>
-  </div>
-
-  <!-- 전체 부품 목록 -->
-  <div class="card">
-    <div class="card-title"><span class="dot"></span>전체 부품 목록</div>
-    <div style="overflow-x:auto">
-      <table class="expense-table">
-        <thead>
-          <tr>
-            <th>#</th><th>부품명</th><th>카테고리</th>
-            <th>유형</th><th>설치</th><th>위치</th><th>무게/개</th><th>수량</th><th>총 무게</th>
-            <th>비용(원/개)</th><th>총 비용(원)</th><th>메모</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="parts-tbody"></tbody>
-      </table>
-      <div class="empty-state" id="parts-empty"><div class="empty-icon">🔩</div><p>등록된 부품이 없습니다</p></div>
-    </div>
-  </div>
-
-  <!-- 예상 전후 무게 배분 -->
+<div id="tab-parts-budget" class="tab-pane">
+<div class="section-header"><div><h2>부품·예산 관리</h2><p class="pb-help">부품의 계획부터 구매, 지출과 무게까지 한곳에서 관리합니다.</p></div><div class="pb-actions"><label>내보내기 범위<select id="pb-export-scope"><option value="all">전체</option><option value="category">선택 파트</option><option value="over">예상 비용 초과</option><option value="unpurchased">미구매 부품</option><option value="other">기타 지출</option></select></label><button id="pb-export" type="button">JSON 내보내기</button><button type="button" onclick="exportBudgetPDF()">PDF</button><button type="button" onclick="pbCopySummary()">요약 복사</button></div></div>
+<p id="pb-message" role="status" aria-live="polite">서버 연결 중…</p><div id="pb-summary" class="pb-summary"></div><p id="pb-warning" class="pb-warning" role="status"></p>
+<details class="pb-settings"><summary>전체 예산 및 파트 설정</summary><form id="pb-overall-form" class="pb-actions"><label>전체 예산 (원)<input id="pb-overall" type="number" min="0" step="any" required></label><button>전체 예산 저장</button></form><p class="pb-help">전체 예산과 파트별 배정액은 별개입니다. 초과 배정도 저장할 수 있습니다.</p><div id="pb-category-list"></div>
+<form id="pb-category-form" class="pb-form-grid"><label>파트 이름<input id="pb-category-name" type="text" required maxlength="80"></label><label>배정 예산 (원)<input id="pb-category-allocation" type="number" min="0" step="any" required></label><div class="pb-actions"><button>파트 저장</button><button id="pb-category-new" type="button">새 파트 입력</button></div></form><label>파트 삭제 시 이동 대상<select id="pb-category-target"></select></label><p class="pb-help">부품, 기타 지출, 배정 예산을 선택한 파트로 함께 옮깁니다. 미분류는 유지됩니다.</p></details>
+<h3>파트별 현황</h3><div id="pb-categories" class="pb-categories"></div>
+<section class="pb-main"><div class="pb-heading"><h3>부품 목록</h3><button id="pb-add" type="button">부품 추가</button></div><p class="pb-help">예상 = 계획 수량 × 예상 단가 · 실제 = 구매 수량 × 실제 단가 · 무게 = 계획 수량 × 개당 무게. 제외 상태는 요약에서 빠집니다. 가격 빈칸은 미입력, 0은 무상입니다.</p>
+<div class="pb-filters"><label>검색<input id="pb-search" type="search" placeholder="부품명 · 규격 · 구매처"></label><label>파트<select id="pb-filter-cat"></select></label><label>상태<select id="pb-filter-status"></select></label><label>정렬<select id="pb-sort"><option value="">파트 순서</option><option value="name">부품명</option><option value="estimated">예상 비용 높은 순</option><option value="actual">실제 지출 높은 순</option><option value="weight">무게 높은 순</option><option value="recent">최근 수정 순</option></select></label></div>
+<div class="pb-actions"><label><input id="pb-over" type="checkbox"> 예상 비용 초과만</label><label><input id="pb-uncat" type="checkbox"> 미분류만</label><button id="pb-reset" type="button">필터 초기화</button></div><p id="pb-active-filters" class="pb-help"></p>
+<form id="pb-part-form" class="pb-editor" hidden><h3 id="pb-form-title">부품 추가</h3><fieldset><legend>기본 정보</legend><div class="pb-form-grid"><label>부품명 *<input id="pb-name" type="text" required maxlength="200"></label><label>파트 *<select id="pb-cat"></select></label><label>상태 *<select id="pb-status"></select></label><label>규격 / 모델<input id="pb-spec" type="text" ></label><label>구매처<input id="pb-vendor" type="text" ></label><label>출처 링크<input id="pb-url" type="url" placeholder="https://"></label></div></fieldset>
+<fieldset><legend>수량과 예산</legend><div class="pb-form-grid"><label>계획 수량 *<input id="pb-plannedQty" type="number" min="0" step="any" required></label><label>구매 수량 *<input id="pb-purchasedQty" type="number" min="0" step="any" required></label><label>예상 단가 (원/개)<input id="pb-plannedUnitCost" type="number" min="0" step="any" placeholder="미입력"></label><label>실제 단가 (원/개)<input id="pb-actualUnitCost" type="number" min="0" step="any" placeholder="미입력"></label></div></fieldset>
+<fieldset><legend>무게와 기타 정보</legend><div class="pb-form-grid"><label>개당 무게 (g)<input id="pb-weight" type="number" min="0" step="any" placeholder="미입력"></label><label>메모<textarea id="pb-note" rows="2"></textarea></label></div><details><summary>무게 배분 정보 (선택)</summary><div class="pb-form-grid"><label>앞차축 기준 위치 (mm)<input id="pb-axlePos" type="number" step="any" placeholder="미입력 시 계산 제외"></label><label>무게 출처<select id="pb-valueType"><option value="">미입력</option><option value="측정">측정</option><option value="카탈로그">카탈로그</option><option value="추정">추정</option></select></label><label>위치 출처<select id="pb-posType"><option value="">미입력</option><option value="실측">실측</option><option value="추정">추정</option><option value="기준점">기준점</option></select></label><label><input id="pb-installed" type="checkbox"> 설치 완료</label></div></details></fieldset><p id="pb-preview" aria-live="polite"></p><div class="pb-actions"><button type="submit">부품 저장</button><button id="pb-cancel" type="button">취소</button></div></form>
+<div class="pb-table-wrap"><table class="pb-table"><thead><tr><th>파트</th><th>부품명</th><th>규격 / 모델</th><th>상태</th><th>계획 수량</th><th>구매 수량</th><th>예상 단가</th><th>실제 단가</th><th>예상 비용</th><th>실제 지출</th><th>개당 무게</th><th>총 무게</th><th>구매처</th><th>출처</th><th>메모</th><th>관리</th></tr></thead><tbody id="pb-tbody"></tbody></table></div><div id="pb-mobile-list"></div><p id="pb-empty" class="pb-empty">표시할 부품이 없습니다. 부품을 추가하거나 필터를 변경하세요.</p></section>
+<details class="pb-other"><summary>기타 지출</summary><p class="pb-help">배송비·가공비 등 부품 구매 금액과 별개인 지출입니다. 기존 예산 장부를 보존했습니다. 같은 금액을 부품 실제 단가에도 입력하면 중복되므로 장부를 정리한 후 입력하세요.</p><button id="pb-exp-add" type="button">기타 지출 추가</button><form id="pb-exp-form" class="pb-editor" hidden><div class="pb-form-grid"><label>품목 *<input id="pb-exp-name" type="text" required></label><label>파트 *<select id="pb-exp-cat"></select></label><label>금액 (원) *<input id="pb-exp-amount" type="number" min="0" step="any" required></label><label>날짜<input id="pb-exp-date" type="date" ></label><label>구매처<input id="pb-exp-vendor" type="text" ></label><label>메모<textarea id="pb-exp-note"></textarea></label></div><div class="pb-actions"><button>기타 지출 저장</button><button id="pb-exp-cancel" type="button">취소</button></div></form><div id="pb-expenses"></div></details>
+<details class="pb-other"><summary>차량 무게 배분 및 코너 무게</summary>
+<!-- 예상 전후 무게 배분 -->
   <div class="card mt-6">
     <div class="card-title"><span class="dot" style="background:#0088ff"></span>예상 전후 무게 배분</div>
     <div class="wd-config-row">
@@ -1197,6 +929,7 @@
       </div>
     </div>
   </div>
+</details>
 </div>
 
 <!-- ═══════════════════════════════════════════════
@@ -2204,7 +1937,7 @@
 <script src="js/fuel.js"></script>
 <script src="js/testlog.js"></script>
 <script src="js/feedback.js"></script>
-<script src="js/budget.js"></script>
+<script src="js/parts-budget.js"></script>
 <script src="js/weight.js"></script>
 <script src="js/damper.js"></script>
 <script src="js/radiator.js"></script>
