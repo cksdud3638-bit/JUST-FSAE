@@ -9,10 +9,8 @@ function renderHome() {
   if (typeof INSP_DATA !== 'undefined') {
     INSP_DATA.forEach(cat => cat.items.forEach(item => allIds.push(item.id)));
   }
-  const total  = allIds.length;
-  const passed = allIds.filter(id => S.inspection[id] === 'pass').length;
-  const failed = allIds.filter(id => S.inspection[id] === 'fail').length;
-  const rate   = total > 0 ? Math.round(passed / total * 100) : 0;
+  const insp=inspectionStats();
+  const total=insp.applicable,passed=insp.pass,failed=insp.fail,rate=insp.rate;
   if (el('home-insp-rate')) el('home-insp-rate').textContent = rate + '%';
   if (el('home-insp-sub'))  el('home-insp-sub').textContent  = `통과 ${passed} / 전체 ${total} (미통과 ${failed})`;
   if (el('home-insp-bar'))  el('home-insp-bar').style.width  = rate + '%';
@@ -46,25 +44,10 @@ function renderHome() {
   }
 
   // 5. D-Day
-  const compEl = document.getElementById('comp-date');
-  const compVal = compEl ? compEl.value : '';
-  if (compVal) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const comp  = new Date(compVal); comp.setHours(0, 0, 0, 0);
-    const diff  = Math.round((comp - today) / 86400000);
-    if (el('home-dday-num')) {
-      el('home-dday-num').textContent = Math.abs(diff);
-      el('home-dday-num').style.color = diff < 0 ? '#ffaa00' : (diff <= 7 ? '#ff6600' : 'var(--red)');
-    }
-    if (el('home-dday-label')) el('home-dday-label').textContent = diff < 0 ? 'DAYS AGO' : 'DAYS LEFT';
-    if (el('home-dday-date'))  el('home-dday-date').textContent  = compVal + (diff === 0 ? ' — 오늘!' : diff < 0 ? ' (종료)' : '');
-  } else {
-    if (el('home-dday-num'))   el('home-dday-num').textContent   = '-';
-    if (el('home-dday-date'))  el('home-dday-date').textContent  = '대회 날짜 미설정 — 인스펙션 탭에서 설정';
-  }
+  renderCompetitionDate();
 
   // 6. 최근 미통과 항목
-  const failIds = Object.entries(S.inspection).filter(([, v]) => v === 'fail').map(([k]) => k);
+  const failIds = INSP_DATA.flatMap(c=>c.items).filter(it=>inspectionState(it)==='fail').map(it=>it.id);
   const failBox = el('home-fail-list');
   if (failBox) {
     if (!failIds.length) {
@@ -145,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   initPartsBudget();
+  initCompetitionDate();
   buildInspection();
   renderHome();
   updateSliderFill();
@@ -157,7 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.setupHistory)   S.setupHistory   = data.setupHistory;
     if (data.budget)         S.budget         = data.budget;
     pbReceive(data);
-    if (data.inspectionMeta) S.inspectionMeta = data.inspectionMeta;
+    S.inspectionMeta = data.inspectionMeta || {};
+    INSP_DATA.forEach(cat=>cat.items.forEach(it=>restoreInspMeta(it.id,S.inspectionMeta[it.id] || {})));
     if (data.cornerWeights)  { S.cornerWeights = data.cornerWeights; restoreCornerWeights(); }
     if (data.wheelbase != null) {
       S.wheelbase = data.wheelbase;
@@ -182,13 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const modifier = data.lastModifier || '';
     setSyncState('synced', modifier);
 
-    if (data.compDate != null) {
-      const el = document.getElementById('comp-date');
-      if (el && el.value !== data.compDate) {
-        el.value = data.compDate;
-        renderReport();
-      }
-    }
+    receiveCompetitionDate(data.compDate || '');
+    S.inspectionReview=data.inspectionReview || {};
+    applyInspectionState();
     renderLapTable(); renderDriverStats(); renderTestLogs(); renderSetupHistory();
     populateSetupLinks(); populateTestSessions(); populateTestLogLinks();
     calcFuel(); renderPartsBudget(); renderParts(); renderHome();
@@ -209,14 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
   db.ref('just/inspection').on('value', function(snapshot) {
     const newState = snapshot.val() || {};
     S.inspection = newState;
-    document.querySelectorAll('.insp-btn').forEach(function(b) { b.classList.remove('active'); });
-    document.querySelectorAll('.insp-item').forEach(function(r) { r.classList.remove('fail'); });
-    Object.entries(newState).forEach(function([id, state]) {
-      const row = document.getElementById('row-' + id);
-      if (!row) return;
-      const target = row.querySelector('.insp-btn.' + state);
-      if (target) { target.classList.add('active'); if (state === 'fail') row.classList.add('fail'); }
-    });
+    applyInspectionState();
     updateInspStats(); renderReport(); renderHome();
   });
 
@@ -228,10 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-export').addEventListener('click', exportData);
   document.getElementById('btn-import').addEventListener('click', importData);
-  document.getElementById('comp-date').addEventListener('change', function() {
-    db.ref('just/compDate').set(this.value);
-    renderReport();
-  });
+
 
   const expDateEl = document.getElementById('exp-date');
   if (expDateEl) expDateEl.value = new Date().toISOString().slice(0,10);

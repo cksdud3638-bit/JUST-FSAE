@@ -192,6 +192,7 @@ test('shared backup supports unified ledger; damper calculations do not write sh
     buildInspection() {}, renderLapTable() {}, renderDriverStats() {}, renderParts() {}, renderTestLogs() {}, renderSetupHistory() {}, populateSetupLinks() {}, calcFuel() {},
   });
   vm.runInContext(fs.readFileSync('js/storage.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('js/competition-date.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('js/parts-budget.js', 'utf8'), context);
   vm.runInContext("S.parts = [{name:'test',weight:123,qty:2}]; save('parts');", context);
   assert.equal(writes[0][0], 'just/parts'); assert.equal(writes[0][1][0].weight, 123);
@@ -199,12 +200,15 @@ test('shared backup supports unified ledger; damper calculations do not write sh
   vm.runInContext(fs.readFileSync('js/damper.js', 'utf8'), context);
   vm.runInContext('dmCalculate(DM_DEF)', context);
   assert.equal(vm.runInContext('JSON.stringify(S)', context), before); assert.equal(writes.length, 3);
+  vm.runInContext("S.compDate='2026-09-30'; S.inspectionReview={br13:'2026-09-C'};",context);
   await vm.runInContext('exportData()', context);
   const exported = JSON.parse(await blob.text());
   assert.equal(exported.version, '2.0'); assert.equal(exported.parts[0].weight, 123);
+  assert.equal(exported.compDate,'2026-09-30');assert.equal(exported.inspectionReview.br13,'2026-09-C');
   assert.ok(!Object.keys(exported).some(k => /damper|dm/.test(k)));
   context.fixture = JSON.stringify(exported);
-  vm.runInContext("S.parts = []; handleImport({files:[fixture], value:'fixture.json'});", context);
+  vm.runInContext("S.parts = []; S.compDate=''; S.inspectionReview={}; handleImport({files:[fixture], value:'fixture.json'});", context);
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(vm.runInContext('S.parts[0].weight', context), 123);
+  assert.equal(vm.runInContext('S.compDate',context),'2026-09-30');assert.equal(vm.runInContext('S.inspectionReview.br13',context),'2026-09-C');
 });

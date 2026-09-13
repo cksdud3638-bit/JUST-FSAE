@@ -20,6 +20,8 @@ const db = firebase.database();
 const S = {
   inspection: {},
   inspectionMeta: {},
+  inspectionReview: {},
+  compDate: '',
   lapTimes: [],
   testLogs: [],
   feedbacks: [],
@@ -98,6 +100,8 @@ async function exportData() {
     exported: new Date().toISOString(),
     inspection: S.inspection,
     inspectionMeta: S.inspectionMeta,
+    inspectionReview: S.inspectionReview,
+    compDate: S.compDate,
     lapTimes: S.lapTimes,
     testLogs: S.testLogs,
     feedbacks: S.feedbacks,
@@ -145,14 +149,18 @@ function handleImport(input) {
       const data = JSON.parse(e.target.result);
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error('지원하지 않는 백업입니다.');
       if(data.reportType) throw Error('이 파일은 보고서입니다. 상단 저장 버튼으로 만든 전체 JSON 백업을 선택하세요.');
+      if(data.compDate && !competitionDay(data.compDate))throw Error('대회 날짜가 올바르지 않습니다.');
       const importedLedger = PB.fromBackup(data,pbData || PB.migrate(S));
       // Validate first; write all imported keys atomically, retaining absent keys.
-      const keys=['inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','budget','cornerWeights','wheelbase','targetFrontPct','driverConfig','fuelConfig'];
+      const keys=['compDate','inspectionReview','inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','budget','cornerWeights','wheelbase','targetFrontPct','driverConfig','fuelConfig'];
       const updates=Object.fromEntries(keys.filter(k=>data[k]!==undefined).map(k=>[k,data[k]]));
       updates.partsBudget=importedLedger;
+      if(data.inspection!==undefined && data.inspectionReview===undefined)updates.inspectionReview={};
       setSyncState('saving');
       await db.ref('just').update(updates);
       S.budget=data.budget ?? S.budget;
+      if(updates.inspectionReview!==undefined)S.inspectionReview=updates.inspectionReview;
+      if(data.compDate!==undefined)receiveCompetitionDate(data.compDate);
       pbReceive({...S,partsBudget:importedLedger});
       setSyncState('saved');
       if (data.inspection     !== undefined) S.inspection     = data.inspection;
