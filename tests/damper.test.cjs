@@ -201,14 +201,16 @@ test('shared backup supports unified ledger; damper calculations do not write sh
   vm.runInContext('dmCalculate(DM_DEF)', context);
   assert.equal(vm.runInContext('JSON.stringify(S)', context), before); assert.equal(writes.length, 3);
   vm.runInContext("S.compDate='2026-09-30'; S.inspectionReview={br13:'2026-09-C'};",context);
+  vm.runInContext("S.testLogs=[{id:1,setup:{fride:0,unknown:'keep'},cooling:{oilLeak:true}}];S.lapTimes=[{id:'lap-2',sessionId:'1',time:'1:23.456',valid:'invalid'}];S.feedbacks=[{id:3,testLogLink:1,lapId:'lap-2',setupLink:4,handling:7,overall:8}];S.setupHistory=[{id:4,what:'spring',sessionId:'1'}];",context);
   await vm.runInContext('exportData()', context);
   const exported = JSON.parse(await blob.text());
   assert.equal(exported.version, '2.0'); assert.equal(exported.parts[0].weight, 123);
   assert.equal(exported.compDate,'2026-09-30');assert.equal(exported.inspectionReview.br13,'2026-09-C');
   assert.ok(!Object.keys(exported).some(k => /damper|dm/.test(k)));
   context.fixture = JSON.stringify(exported);
-  vm.runInContext("S.parts = []; S.compDate=''; S.inspectionReview={}; handleImport({files:[fixture], value:'fixture.json'});", context);
+  vm.runInContext("S.parts = []; S.compDate=''; S.inspectionReview={}; S.testLogs=[];S.lapTimes=[];S.feedbacks=[];S.setupHistory=[];handleImport({files:[fixture], value:'fixture.json'});", context);
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(vm.runInContext('S.parts[0].weight', context), 123);
   assert.equal(vm.runInContext('S.compDate',context),'2026-09-30');assert.equal(vm.runInContext('S.inspectionReview.br13',context),'2026-09-C');
+  for(const key of ['testLogs','lapTimes','feedbacks','setupHistory'])assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(S.'+key+')',context)),exported[key]);
 });

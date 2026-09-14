@@ -684,3 +684,23 @@ textarea.form-control{resize:vertical;min-height:80px}
   #tab-inspection .insp-controls { flex-wrap:wrap; }
   #tab-inspection .insp-item-name { overflow-wrap:anywhere; }
 }
+/* Unified driving workflow */
+.drive-toolbar,.drive-actions,.drive-nav{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:16px 0}
+.drive-toolbar label{flex:1;min-width:180px;color:#aaa;font-size:12px;display:grid;gap:8px}
+.drive-nav button{background:#191919;border:1px solid #333;border-radius:8px;padding:12px 18px;color:#bbb;min-height:44px;cursor:pointer}
+.drive-nav button.active{background:#991b1b;border-color:#ff5555;color:#fff}
+.drive-section[hidden]{display:none!important}
+.drive-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.drive-summary>div,.drive-stat{padding:16px;border:1px solid #333;background:#141414;border-radius:10px;margin-bottom:10px;overflow-wrap:anywhere}
+.drive-summary span{display:block;color:#aaa;font-size:12px;margin-bottom:8px}
+.drive-summary strong{font-size:20px}
+.drive-help{color:#aaa;font-size:12px;line-height:1.7;margin:8px 0}
+#drive-status{color:#ffaa66;min-height:22px}
+.drive-stat p{font-size:13px;line-height:1.8;white-space:pre-wrap}
+.drive-table{overflow-x:auto;margin-top:16px}
+#tab-driving .grid-2>*{min-width:0}
+#tab-driving .btn{min-height:40px}
+#tab-driving .test-log-item h3{font-size:14px;overflow-wrap:anywhere}
+#tab-driving .test-log-item p{font-size:12px;line-height:1.6;white-space:pre-wrap}
+@media(max-width:640px){.drive-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.drive-summary strong{font-size:17px}.drive-nav button{flex:1;padding:10px;white-space:nowrap}.drive-toolbar label{min-width:100%;}.drive-actions .btn{flex:1}.drive-section .grid-2{grid-template-columns:minmax(0,1fr)!important}}
+.drive-details{border:1px solid #333;border-radius:8px;padding:12px;margin:12px 0}.drive-details summary{cursor:pointer;min-height:28px;color:#ddd;font-size:13px}.drive-details[open] summary{margin-bottom:12px}

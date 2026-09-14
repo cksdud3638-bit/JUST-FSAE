@@ -75,8 +75,8 @@ function renderHome() {
 
   // 7. 랩타임 요약
   if (el('home-lap-count')) el('home-lap-count').textContent = S.lapTimes.length;
-  if (S.lapTimes.length && typeof formatTime === 'function') {
-    const best = Math.min(...S.lapTimes.map(l => l.sec));
+  if (S.lapTimes.some(DR.valid) && typeof formatTime === 'function') {
+    const best = DR.stats(S.lapTimes).best;
     if (el('home-lap-best')) el('home-lap-best').textContent = '최고: ' + formatTime(best);
   } else {
     if (el('home-lap-best')) el('home-lap-best').textContent = '최고기록 없음';
@@ -94,6 +94,9 @@ function renderHome() {
 // TAB SWITCHING
 // ═══════════════════════════════════════════════
 function switchTab(name, btn) {
+  const legacyDrive={laptime:'laps',testlog:'log',feedback:'feedback'};
+  const driveTarget=legacyDrive[name];
+  if(driveTarget){name='driving';btn=document.querySelector('[data-tab="driving"]');}
   if (['budget','parts','weight'].includes(name)) { name='parts-budget'; btn=document.querySelector('[data-tab="parts-budget"]'); }
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -101,10 +104,8 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   btn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
   if (name === 'home')     { renderHome(); }
-  if (name === 'laptime')  { renderLapCharts(); populateTestSessions(); }
+  if (name === 'driving')  { driveShow(driveTarget || driveView); }
   if (name === 'fuel')     { calcFuel(); }
-  if (name === 'feedback') { renderFeedbackCharts(); renderSetupHistory(); populateSetupLinks(); populateTestLogLinks(); }
-  if (name === 'testlog')  { renderTestLogs(); }
   if (name === 'parts-budget') { renderPartsBudget(); renderWeightDistribution(); }
   if (name === 'parts')    { renderParts(); updateSliderFill(); updateWheelbaseMarkers(); }
   if (name === 'damper')   { if (typeof initDamper   === 'function') initDamper(); }
@@ -112,6 +113,7 @@ function switchTab(name, btn) {
 }
 
 function switchTabByName(name) {
+  if(['laptime','testlog','feedback'].includes(name)){switchTab(name,document.querySelector('[data-tab="driving"]'));return;}
   if (['budget','parts','weight'].includes(name)) name='parts-budget';
   const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
   if (btn) switchTab(name, btn);
@@ -121,7 +123,7 @@ function switchTabByName(name) {
 // INIT
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  const today = new Date().toISOString().slice(0,10);
+  const today = driveToday();
   ['lt-date','log-date','fb-date','sh-date'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.value = today;
@@ -129,16 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initPartsBudget();
   initCompetitionDate();
+  initDriving();
   buildInspection();
   renderHome();
   updateSliderFill();
 
   db.ref('just').on('value', function(snapshot) {
     const data = snapshot.val() || {};
-    if (data.lapTimes)       S.lapTimes       = data.lapTimes;
-    if (data.testLogs)       S.testLogs       = data.testLogs;
-    if (data.feedbacks)      S.feedbacks      = data.feedbacks;
-    if (data.setupHistory)   S.setupHistory   = data.setupHistory;
+    receiveDriving(data);
     if (data.budget)         S.budget         = data.budget;
     pbReceive(data);
     S.inspectionMeta = data.inspectionMeta || {};
@@ -170,8 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
     receiveCompetitionDate(data.compDate || '');
     S.inspectionReview=data.inspectionReview || {};
     applyInspectionState();
-    renderLapTable(); renderDriverStats(); renderTestLogs(); renderSetupHistory();
-    populateSetupLinks(); populateTestSessions(); populateTestLogLinks();
     calcFuel(); renderPartsBudget(); renderParts(); renderHome();
   });
 

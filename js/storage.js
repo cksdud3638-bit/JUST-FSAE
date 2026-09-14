@@ -175,6 +175,7 @@ function handleImport(input) {
       if (data.targetFrontPct !== undefined) S.targetFrontPct = data.targetFrontPct;
       if (data.driverConfig   !== undefined) S.driverConfig   = data.driverConfig;
       if (data.fuelConfig     !== undefined) S.fuelConfig     = data.fuelConfig;
+      if(typeof DR!=='undefined')for(const key of ['testLogs','lapTimes','feedbacks','setupHistory'])S[key]=DR.list(S[key]);
       renderHome();
       buildInspection();
       if (typeof restoreDriverFuelInputs === 'function') restoreDriverFuelInputs();
@@ -185,6 +186,7 @@ function handleImport(input) {
       renderSetupHistory();
       populateSetupLinks();
       calcFuel();
+      if(typeof renderDriving==='function')renderDriving();
       alert('데이터를 성공적으로 불러왔습니다!');
     } catch(err) {
       alert('파일 읽기 오류: ' + err.message);
