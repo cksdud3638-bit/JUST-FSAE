@@ -335,7 +335,7 @@
   <div class="section-header">
     <div>
       <div class="section-title">연료 전략 계산기</div>
-      <div class="section-sub">레이스 연료 소모량 계산 및 피트스톱 전략 시뮬레이션</div>
+      <div class="section-sub">입력 거리 기준 연료 소모량 · 안전 여유분 · 보충 가능 조건 계산</div>
     </div>
   </div>
 
@@ -343,29 +343,37 @@
     <div class="card">
       <div class="card-title"><span class="dot"></span>기본 설정</div>
       <div class="form-group">
-        <label>엔진 연비 (km/L)</label>
-        <input type="number" class="form-control" id="fuel-eff" value="8.5" step="0.1" min="1" onchange="calcFuel()">
+        <label for="fuel-eff">엔진 연비 (km/L)</label>
+        <input type="number" class="form-control" id="fuel-eff" value="8.5" step="any" min="0.001" oninput="calcFuel()">
       </div>
       <div class="form-group">
-        <label>서킷 길이 (km)</label>
-        <input type="number" class="form-control" id="circuit-len" value="1.2" step="0.01" min="0.1" onchange="calcFuel()">
+        <label for="circuit-len">서킷 1랩 길이 (km)</label>
+        <input type="number" class="form-control" id="circuit-len" value="1.2" step="any" min="0.001" oninput="calcFuel()">
       </div>
       <div class="form-group">
-        <label>레이스 거리 (km)</label>
-        <input type="number" class="form-control" id="race-dist" value="22" step="1" min="1" onchange="calcFuel()">
+        <label for="race-dist">전체 주행 거리 (km)</label>
+        <input type="number" class="form-control" id="race-dist" value="22" step="any" min="0.001" oninput="calcFuel()">
       </div>
       <div class="form-group">
-        <label>연료 탱크 용량 (L)</label>
-        <input type="number" class="form-control" id="tank-cap" value="5.5" step="0.1" min="1" onchange="calcFuel()">
+        <label for="tank-cap">사용 가능한 탱크 용량 (L)</label>
+        <input type="number" class="form-control" id="tank-cap" value="5.5" step="any" min="0.001" oninput="calcFuel()">
       </div>
       <div class="form-group">
-        <label>안전 여유율 (%)</label>
-        <input type="number" class="form-control" id="safety-margin" value="10" step="1" min="0" max="50" onchange="calcFuel()">
+        <label for="safety-margin">안전 여유율 (%)</label>
+        <input type="number" class="form-control" id="safety-margin" value="10" step="any" min="0" max="50" oninput="calcFuel()">
       </div>
       <div class="form-group">
-        <label>피트스톱당 연료 보충량 (L)</label>
-        <input type="number" class="form-control" id="pit-fuel" value="5.0" step="0.1" min="0" onchange="calcFuel()">
+        <label for="fuel-density">연료 밀도 (kg/L)</label>
+        <input type="number" class="form-control" id="fuel-density" value="0.74" step="any" min="0.001" oninput="calcFuel()">
       </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:10px;min-height:44px"><input type="checkbox" id="fuel-allow-refuel" onchange="calcFuel()"> 주행 중 연료 보충을 허용한 시뮬레이션</label>
+        <label for="pit-fuel">보충 1회당 최대 주입량 (L)</label>
+        <input type="number" class="form-control" id="pit-fuel" value="5.0" step="any" min="0" disabled oninput="calcFuel()">
+      </div>
+      <p class="text-xs text-gray">초기 수치는 계산 예시입니다. 실측 연비·사용 연료의 밀도·실제 주행 거리로 변경하세요. 대회 중 보충 가능 여부는 해당 대회 운영 규정을 확인하세요.</p>
+      <p class="text-xs text-gray mt-4">여유분 = 기본 소모량 × 여유율. 매 구간 종료 시 여유분을 유지하며, 보충은 랩 완료 후에만 계산합니다. 입력값은 이 화면에서만 사용하며 새로고침 시 초기값으로 돌아갑니다.</p>
+      <p id="fuel-error" role="alert" style="color:#ff6666;margin-top:12px"></p>
       <button class="btn btn-primary w-full mt-4" onclick="calcFuel()">계산하기</button>
     </div>
 
@@ -375,21 +383,21 @@
         <div class="fuel-result-grid">
           <div class="fuel-stat">
             <div class="value" id="fr-total-fuel">-</div>
-            <div class="label">필요 연료 (L)</div>
+            <div class="label">총 준비 연료 · 여유분 포함</div>
           </div>
           <div class="fuel-stat">
             <div class="value" id="fr-laps">-</div>
-            <div class="label">총 랩 수</div>
+            <div class="label">입력 거리 ÷ 1랩 길이</div>
           </div>
           <div class="fuel-stat">
             <div class="value" id="fr-per-lap">-</div>
-            <div class="label">랩당 연료 (L)</div>
+            <div class="label">1랩 기본 소모량</div>
           </div>
         </div>
 
         <div class="fuel-bar-wrap mt-4">
           <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:6px">
-            <span>탱크 사용률</span>
+            <span>총 준비 연료 / 탱크 용량</span>
             <span id="fr-tank-pct">-</span>
           </div>
           <div class="fuel-bar-track">
@@ -402,28 +410,29 @@
         </div>
 
         <div class="mt-4">
-          <div class="card-title" style="margin-bottom:12px"><span class="dot"></span>피트스톱 전략</div>
+          <p style="margin-bottom:12px">출발 탑재량 <strong id="fr-start">—</strong> · 유지할 여유분 <strong id="fr-reserve">—</strong></p>
+          <div class="card-title" style="margin-bottom:12px"><span class="dot"></span>완주 가능 여부 및 보충 계획</div>
           <div id="pit-stop-plan"></div>
         </div>
       </div>
 
       <div class="card mt-4" style="background:linear-gradient(135deg,rgba(255,170,0,0.06),rgba(255,170,0,0.02));border-color:rgba(255,170,0,0.25)">
-        <div class="card-title"><span class="dot" style="background:#ffaa00"></span>부품 무게 연동 — 예상 차량 중량</div>
+        <div class="card-title"><span class="dot" style="background:#ffaa00"></span>등록 부품 + 출발 연료 중량</div>
         <div class="grid-3" style="text-align:center;gap:12px">
           <div style="background:#1a1a1a;border-radius:8px;padding:14px">
             <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">등록 부품 중량</div>
             <div id="fuel-parts-weight" style="font-size:22px;font-weight:800;color:#ffaa00">0 g</div>
           </div>
           <div style="background:#1a1a1a;border-radius:8px;padding:14px">
-            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">연료 중량 (≈740g/L)</div>
+            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">출발 연료 중량</div>
             <div id="fuel-fuel-weight" style="font-size:22px;font-weight:800;color:#ff6600">0 g</div>
           </div>
           <div style="background:#111;border-radius:8px;padding:14px;border:1px solid rgba(255,170,0,0.3)">
-            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">예상 총 차량 중량</div>
+            <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px">부품 + 출발 연료 합계</div>
             <div id="fuel-total-weight" style="font-size:22px;font-weight:800;color:#fff">0 kg</div>
           </div>
         </div>
-        <div style="font-size:11px;color:#555;margin-top:10px;text-align:center">* 연료 밀도 0.74 kg/L 기준 · 부품·예산 관리의 등록 데이터 반영</div>
+        <div style="font-size:11px;color:#888;margin-top:10px;text-align:center">계획 수량 기준 등록 부품 중량이며 ‘제외’ 상태는 뺍니다. 미등록 부품·운전자·기타 유체는 별도로 더하지 않습니다. 이미 부품에 연료를 등록했다면 중복 합산에 유의하세요.</div>
       </div>
 
       <div class="card mt-4">
@@ -431,6 +440,7 @@
         <div class="chart-wrap">
           <canvas id="fuelChart"></canvas>
         </div>
+        <p id="fuel-chart-note" class="text-xs text-gray mt-4"></p>
       </div>
     </div>
   </div>

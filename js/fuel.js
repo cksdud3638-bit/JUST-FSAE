@@ -1,101 +1,86 @@
-// ═══════════════════════════════════════════════
-// TAB 3: FUEL STRATEGY
-// ═══════════════════════════════════════════════
+// Distance is authoritative; the final segment can be a partial lap.
 let fuelChart = null;
-
-function calcFuel() {
-  const eff = parseFloat(v('fuel-eff')) || 8.5;
-  const circuitLen = parseFloat(v('circuit-len')) || 1.2;
-  const raceDist = parseFloat(v('race-dist')) || 22;
-  const tankCap = parseFloat(v('tank-cap')) || 5.5;
-  const margin = parseFloat(v('safety-margin')) || 10;
-  const pitFuel = parseFloat(v('pit-fuel')) || 5.0;
-
-  const lapsTotal = Math.ceil(raceDist / circuitLen);
-  const fuelPerLap = circuitLen / eff;
-  const baseFuel = raceDist / eff;
-  const totalFuel = baseFuel * (1 + margin/100);
-  const tankPct = Math.min((totalFuel / tankCap) * 100, 100);
-
-  setText('fr-total-fuel', totalFuel.toFixed(2) + ' L');
-  setText('fr-laps', lapsTotal + ' 랩');
-  setText('fr-per-lap', fuelPerLap.toFixed(3) + ' L');
-  setText('fr-tank-pct', Math.round(tankPct) + '%');
-  setText('fr-tank-cap-label', tankCap + ' L');
-  document.getElementById('fr-tank-bar').style.width = tankPct + '%';
-  document.getElementById('fr-tank-bar').style.background =
-    tankPct > 100 ? '#ff4444' : tankPct > 85 ? '#ffaa00' : 'linear-gradient(90deg,#ff0000,#ff4444)';
-
-  const pitEl = document.getElementById('pit-stop-plan');
-  if (totalFuel <= tankCap) {
-    pitEl.innerHTML = `<div class="pit-stop-item"><div class="lap">✓</div><div class="details">피트스톱 불필요<span>전체 연료 탱크 내 수용 가능</span></div></div>`;
-  } else {
-    let remaining = totalFuel;
-    let lap = 0;
-    let stops = [];
-    let currentFuel = tankCap;
-    while (remaining > 0) {
-      const lapsOnFuel = Math.floor(currentFuel / fuelPerLap);
-      lap += lapsOnFuel;
-      remaining -= lapsOnFuel * fuelPerLap;
-      if (remaining > 0 && lap < lapsTotal) {
-        stops.push({ lap, addFuel: Math.min(pitFuel, tankCap) });
-        currentFuel = Math.min(pitFuel, tankCap);
-      } else break;
-      if (stops.length > 20) break;
-    }
-    pitEl.innerHTML = stops.map((s,i) =>
-      `<div class="pit-stop-item"><div class="lap">${s.lap}</div><div class="details">피트스톱 #${i+1} — 연료 보충 ${s.addFuel.toFixed(1)} L<span>${s.lap}랩 이후 피트 진입</span></div></div>`
-    ).join('') || '<div class="pit-stop-item"><div class="lap">-</div><div class="details">계산 오류<span>수치를 확인하세요</span></div></div>';
+function calculateFuel(input) {
+  const names={eff:'연비',circuitLen:'서킷 길이',raceDist:'레이스 거리',tankCap:'탱크 용량',margin:'안전 여유율',pitFuel:'보충량',density:'연료 밀도'};
+  const n={};
+  for(const [key,label] of Object.entries(names)) {
+    const value=input[key];
+    if(!['number','string'].includes(typeof value) || String(value).trim()==='')throw Error(label+': 값을 입력하세요.');
+    n[key]=Number(value);
+    if(!Number.isFinite(n[key]) || n[key]<0 || (!['margin','pitFuel'].includes(key) && n[key]===0))throw Error(label+'에 올바른 양수를 입력하세요. 여유율과 보충량은 0도 가능합니다.');
   }
-
-  // 부품 무게 연동 — 예상 차량 중량
-  const partsWeight = S.parts.reduce((a, p) => a + (p.weight || 0) * (p.qty ?? 1), 0);
-  const fuelWeight  = Math.round(totalFuel * 740);
-  const totalVehWeight = partsWeight + fuelWeight;
-  const setFuelEl = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-  setFuelEl('fuel-parts-weight', partsWeight.toLocaleString() + ' g');
-  setFuelEl('fuel-fuel-weight',  fuelWeight.toLocaleString() + ' g');
-  setFuelEl('fuel-total-weight', (totalVehWeight / 1000).toFixed(2) + ' kg');
-
-  renderFuelChart(lapsTotal, fuelPerLap, tankCap, pitFuel, totalFuel);
+  if(n.margin>50)throw Error('안전 여유율은 0~50% 범위로 입력하세요.');
+  const equivalentLaps=n.raceDist/n.circuitLen;
+  if(!Number.isFinite(equivalentLaps) || equivalentLaps>10000)throw Error('시뮬레이션은 최대 10,000랩까지 지원합니다. 거리와 서킷 길이를 확인하세요.');
+  const steps=Math.max(1,Math.ceil(equivalentLaps-1e-10)),baseFuel=n.raceDist/n.eff,reserve=baseFuel*n.margin/100;
+  const required=baseFuel+reserve,perLap=n.circuitLen/n.eff,tankPct=required/n.tankCap*100;
+  const start=Math.min(required,n.tankCap),fuelKg=start*n.density;
+  if(![baseFuel,reserve,required,perLap,tankPct,fuelKg].every(Number.isFinite) || baseFuel<=0)throw Error('입력값의 범위가 너무 큽니다. 단위와 수치를 확인하세요.');
+  const tolerance=1e-10*required;
+  let current=start,consumed=0,reason='';
+  const events=[],points=[{x:0,y:start}];
+  for(let i=0;i<steps;i++) {
+    const endDistance=i===steps-1?n.raceDist:(i+1)*n.circuitLen;
+    const burn=(endDistance-i*n.circuitLen)/n.eff;
+    if(current+tolerance<burn+reserve) {
+      if(i===0){reason='출발 연료로 첫 구간을 주행하면서 안전 여유분을 유지할 수 없습니다.';break;}
+      if(!input.allowRefuel){reason='보충 없이 주행하기에는 탱크 용량이 부족합니다.';break;}
+      const add=Math.max(0,Math.min(n.pitFuel,n.tankCap-current,required-consumed-current));
+      if(current+add+tolerance<burn+reserve){reason='한 번의 보충량 또는 탱크 용량이 부족해 다음 구간을 주행하며 여유분을 유지할 수 없습니다.';break;}
+      current+=add;events.push({lap:i,addFuel:add,after:current});points.push({x:i,y:current});
+    }
+    current=Math.max(0,current-burn);consumed+=burn;
+    points.push({x:endDistance/n.circuitLen,y:current});
+  }
+  return {...n,equivalentLaps,steps,baseFuel,reserve,required,perLap,tankPct,start,fuelKg,events,points,
+    feasible:!reason,reason,finish:current,consumed};
 }
-
-function renderFuelChart(laps, fuelPerLap, tankCap, pitFuel, totalFuel) {
-  const ctx = document.getElementById('fuelChart').getContext('2d');
-  if (fuelChart) fuelChart.destroy();
-
-  const labels = [];
-  const fuelData = [];
-  let current = Math.min(totalFuel, tankCap);
-  for (let i=0; i<=laps; i++) {
-    labels.push('L' + i);
-    fuelData.push(parseFloat(current.toFixed(3)));
-    current -= fuelPerLap;
-    if (current < 0.5 && i < laps) {
-      current = Math.min(pitFuel, tankCap);
-    }
+function calcFuel() {
+  const ids={eff:'fuel-eff',circuitLen:'circuit-len',raceDist:'race-dist',tankCap:'tank-cap',margin:'safety-margin',pitFuel:'pit-fuel',density:'fuel-density'};
+  const input=Object.fromEntries(Object.entries(ids).map(([k,id])=>[k,v(id)]));
+  input.allowRefuel=!!document.getElementById('fuel-allow-refuel')?.checked;
+  const pitInput=document.getElementById('pit-fuel');if(pitInput)pitInput.disabled=!input.allowRefuel;
+  if(!input.allowRefuel)input.pitFuel=0;
+  let result;
+  try {result=calculateFuel(input);}catch(err){
+    setText('fuel-error',err.message);
+    ['fr-total-fuel','fr-laps','fr-per-lap','fr-tank-pct','fr-tank-cap-label','fuel-parts-weight','fuel-fuel-weight','fuel-total-weight','fr-start','fr-reserve'].forEach(id=>setText(id,'—'));
+    setText('pit-stop-plan','입력값을 확인하면 결과를 다시 계산합니다.');
+    setText('fuel-chart-note','입력 오류로 그래프를 표시하지 않습니다.');
+    const bar=document.getElementById('fr-tank-bar');if(bar)bar.style.width='0%';
+    if(fuelChart){fuelChart.destroy();fuelChart=null;}return;
   }
-
-  fuelChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: '잔여 연료 (L)',
-        data: fuelData,
-        borderColor: '#ff0000',
-        backgroundColor: 'rgba(255,0,0,0.1)',
-        fill: true, tension: 0.3, pointRadius: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color:'#888', font:{size:11} } } },
-      scales: {
-        x: { grid:{color:'#1a1a1a'}, ticks:{color:'#666',font:{size:10},maxTicksLimit:10} },
-        y: { grid:{color:'#1a1a1a'}, ticks:{color:'#666',font:{size:10}}, min:0 }
-      }
-    }
+  setText('fuel-error','');
+  setText('fr-total-fuel',result.required.toFixed(2)+' L');
+  setText('fr-laps',Number(result.equivalentLaps.toFixed(3))+' 랩 상당');
+  setText('fr-per-lap',result.perLap.toFixed(3)+' L');
+  setText('fr-start',result.start.toFixed(2)+' L');setText('fr-reserve',result.reserve.toFixed(2)+' L');
+  setText('fr-tank-pct',result.tankPct.toFixed(1)+'%'+(result.tankPct>100?' · 용량 초과':''));
+  setText('fr-tank-cap-label',result.tankCap+' L');
+  const bar=document.getElementById('fr-tank-bar');
+  if(bar){bar.style.width=Math.min(result.tankPct,100)+'%';bar.style.background=result.tankPct>100?'#ff4444':result.tankPct>85?'#ffaa00':'#00cc66';}
+  const plan=document.getElementById('pit-stop-plan');
+  if(plan)plan.innerHTML=(result.feasible
+    ? `<p style="color:#00cc66">${result.events.length?'보충 조건에서 완주 가능':'보충 없이 완주 가능'} · 예상 종료 잔량 ${result.finish.toFixed(2)} L</p>`
+    : `<p style="color:#ff6666">현재 설정으로 완주 불가: ${result.reason}</p>`)
+    +result.events.map((e,i)=>`<div class="pit-stop-item"><div class="lap">${e.lap}</div><div class="details">보충 #${i+1} — ${e.addFuel.toFixed(3)} L<span>${e.lap}랩 완료 후 · 보충 직후 ${e.after.toFixed(3)} L</span></div></div>`).join('');
+  const parts=Array.isArray(S.parts)?S.parts:Object.values(S.parts||{});
+  const partsWeight=parts.filter(p=>p.status!=='제외').reduce((sum,p)=>sum+Number(p.weight||0)*Number(p.qty??1),0);
+  setText('fuel-parts-weight',partsWeight.toLocaleString()+' g');
+  setText('fuel-fuel-weight',result.fuelKg.toFixed(3)+' kg');
+  setText('fuel-total-weight',((partsWeight/1000)+result.fuelKg).toFixed(2)+' kg');
+  setText('fuel-chart-note',result.feasible?'입력 거리까지만 계산합니다. 수직 상승 구간은 위 계획과 같은 연료 보충입니다.':'진행 가능한 구간까지만 표시합니다. 이후 완주를 가정하지 않습니다.');
+  renderFuelChart(result);
+}
+function renderFuelChart(result) {
+  if(fuelChart){fuelChart.destroy();fuelChart=null;}
+  const canvas=document.getElementById('fuelChart');
+  if(!canvas || typeof Chart==='undefined'){setText('fuel-chart-note','그래프를 불러오지 못했습니다. 위 수치 결과와 보충 계획을 확인하세요.');return;}
+  fuelChart=new Chart(canvas.getContext('2d'),{
+    type:'line',data:{datasets:[{label:'잔여 연료 (L)',data:result.points,borderColor:'#ff4444',backgroundColor:'rgba(255,0,0,0.1)',fill:true,tension:0,pointRadius:2}]},
+    options:{responsive:true,animation:false,plugins:{legend:{labels:{color:'#888'}}},scales:{
+      x:{type:'linear',min:0,max:result.equivalentLaps,title:{display:true,text:'주행 랩 (소수 = 마지막 부분 랩)',color:'#888'},ticks:{color:'#888',maxTicksLimit:10}},
+      y:{min:0,title:{display:true,text:'잔여 연료 (L)',color:'#888'},ticks:{color:'#888'}}}}
   });
 }
+if(typeof module!=='undefined')module.exports={calculateFuel};
