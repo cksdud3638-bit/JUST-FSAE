@@ -6,6 +6,7 @@
 <title>JUST FSAE 통합 관리 시스템</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/driving.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -210,46 +211,26 @@
 <!-- ═══════════════════════════════════════════════
      TAB 3: FUEL STRATEGY
 ═══════════════════════════════════════════════ -->
-<div id="tab-driving" class="tab-pane">
-<div class="section-header"><div><h2>주행 테스트 관리</h2><p class="drive-help">테스트를 선택하고 랩타임·피드백·세팅 변화를 함께 확인하세요.</p></div><button class="btn btn-primary" onclick="showNewLog()">새 테스트 만들기</button></div>
-<div class="drive-toolbar"><label>테스트 범위<select id="drive-session" class="form-control" onchange="driveSelect(this.value)"><option value="all">전체 테스트</option><option value="unlinked">미연결 기록</option></select></label><label>드라이버 필터<select id="drive-driver" class="form-control" onchange="renderDriving()"><option value="">전체 드라이버</option></select></label></div>
-<p id="drive-status" role="status" aria-live="polite"></p><div id="drive-summary" class="drive-summary"></div><p id="drive-context" class="drive-help"></p>
-<nav class="drive-nav" aria-label="주행 테스트 작업"><button type="button" data-drive-view="log" onclick="driveShow('log')">테스트 정보</button><button type="button" data-drive-view="laps" onclick="driveShow('laps')">랩타임</button><button type="button" data-drive-view="feedback" onclick="driveShow('feedback')">피드백·세팅</button><button type="button" data-drive-view="compare" onclick="driveShow('compare')">테스트 비교</button></nav>
-<div id="drive-log" class="drive-section" hidden>
-  <div class="section-header">
-    <div>
-      <div class="section-title">테스트 일지</div>
-      <div class="section-sub">주행 테스트 기록 및 세팅 상태 관리</div>
-    </div>
-    <button class="btn btn-primary btn-sm" onclick="showNewLog()">+ 새 테스트 작성</button>
-  </div>
-
-  <div class="grid-2">
-    <!-- Left: List -->
-    <div>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="form-control" id="log-search" placeholder="날짜 또는 키워드 검색..." oninput="filterLogs()">
-      </div>
-      <div id="test-log-list">
-        <div class="empty-state"><div class="empty-icon">📋</div><p>작성된 일지가 없습니다</p></div>
-      </div>
-    </div>
-
-    <!-- Right: Form / Detail -->
-    <div>
-      <div id="log-form-panel" class="card">
-        <div class="card-title"><span class="dot"></span><span id="log-form-title">새 테스트 작성</span></div>
+<div id="tab-driving" class="tab-pane dw-app">
+<header class="dw-page-heading"><div><span class="dw-eyebrow">TRACKSIDE / 주행 기록</span><h2>주행 테스트</h2><p>한 번의 테스트, 모든 주행 기록을 한곳에.</p></div><button class="btn btn-primary" onclick="showNewLog()">＋ 새 테스트</button></header>
+<div class="dw-layout"><aside class="dw-sidebar"><details id="dw-test-picker" open><summary>테스트 목록 <span id="dw-test-count"></span></summary><label class="dw-search"><span class="sr-only">테스트 검색</span><input id="log-search" type="search" placeholder="이름 · 장소 · 날짜 검색" oninput="filterLogs()"></label><div class="dw-scope-actions"><button onclick="driveSelect('all')">모든 기록</button><button onclick="driveSelect('unlinked')">미연결 기록</button></div><div id="test-log-list"></div></details></aside>
+<section class="dw-workbench"><div id="dw-test-heading"></div><div id="drive-summary" class="dw-metrics"></div><div id="dw-quick-actions" class="dw-quick-actions"><button class="dw-primary-action" onclick="driveStartLap()"><span>＋</span><strong>랩 기록</strong><small>시간과 드라이버 입력</small></button><button onclick="driveStartFeedback()"><span>✎</span><strong>드라이버 메모</strong><small>주행 직후 느낌 기록</small></button><button onclick="driveStartSetup()"><span>↗</span><strong>세팅 변경</strong><small>바꾼 값과 이유 기록</small></button></div>
+<div id="drive-status" role="status" aria-live="polite"></div>
+<div class="dw-feed-heading"><div><h3>주행 타임라인</h3><p id="drive-context"></p></div><div class="dw-feed-filters"><label>드라이버<select id="drive-driver" onchange="renderDriving()"><option value="">전체 드라이버</option></select></label><label>기록 종류<select id="dw-record-kind" onchange="renderDriveWorkspace()"><option value="all">전체 기록</option><option value="lapTimes">랩타임</option><option value="feedbacks">드라이버 메모</option><option value="setupHistory">세팅 변경</option></select></label></div></div>
+<div id="dw-timeline"></div><button id="dw-more" class="btn btn-ghost" onclick="driveMore()" hidden>이전 기록 더 보기</button>
+<details class="dw-analysis" ontoggle="if(this.open)driveRenderAnalysis()"><summary>기록 분석 · 그래프</summary><div id="driver-stats-list"></div><div class="dw-form-two"><div class="chart-wrap"><canvas id="lapTrendChart"></canvas></div><div class="chart-wrap"><canvas id="lapCompareChart"></canvas></div></div><div class="dw-form-two"><div><canvas id="radarChart"></canvas></div><div class="chart-wrap"><canvas id="fbTrendChart"></canvas></div></div></details>
+</section></div>
+<dialog id="dw-editor" aria-labelledby="dw-editor-title"><header class="dw-editor-heading"><div><h2 id="dw-editor-title">기록 입력</h2><p id="dw-editor-context"></p></div><button type="button" aria-label="입력창 닫기" onclick="driveClose()">×</button></header><p id="dw-editor-status" role="status" aria-live="polite"></p><form id="drive-log" class="drive-section" hidden onsubmit="event.preventDefault();saveLog()"><div id="log-form-panel" class="card">
+        <h3 id="log-form-title" class="dw-form-title">새 테스트 작성</h3>
         <div class="form-group"><label for="log-title">테스트 이름</label><input id="log-title" class="form-control" placeholder="예: 전륜 댐퍼 2클릭 변경"></div><div class="form-group"><label for="log-location">장소 / 코스</label><input id="log-location" class="form-control" placeholder="주행 장소와 코스 구성"></div><div class="form-group"><label for="log-purpose">테스트 목적</label><input id="log-purpose" class="form-control" placeholder="확인하려는 변화"></div><div class="grid-2">
           <div class="form-group">
             <label for="log-date">날짜</label>
             <input type="date" class="form-control" id="log-date">
           </div>
-          <div class="form-group">
+        </div><details class="dw-details"><summary>날씨 · 노면 · 기온 (선택)</summary>          <div class="form-group">
             <label for="log-temp">기온 (°C)</label>
             <input type="number" class="form-control" id="log-temp" placeholder="25">
           </div>
-        </div>
         <div class="grid-2">
           <div class="form-group">
             <label for="log-weather">날씨</label>
@@ -270,6 +251,7 @@
           </div>
         </div>
 
+</details>
         <details class="drive-details"><summary>차량 세팅 (선택)</summary>
         <div class="divider"></div>
         <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">차량 셋업 상태</div>
@@ -311,7 +293,7 @@
 
         <div class="divider"></div>
         </details>
-        <div class="form-group">
+<details class="dw-details"><summary>테스트 결과 · 다음 할 일 (선택)</summary>        <div class="form-group">
           <label for="log-result">테스트 결과</label>
           <textarea class="form-control" id="log-result" rows="3" placeholder="오늘 테스트 결과 요약..."></textarea>
         </div>
@@ -325,7 +307,7 @@
         </div>
 
         <div class="divider"></div>
-        <details class="drive-details"><summary>냉각·운행·연료 데이터 (선택)</summary>
+        </details><details class="drive-details"><summary>냉각·운행·연료 데이터 (선택)</summary>
         <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">냉각 &amp; 운행 데이터</div>
         <div class="grid-2">
           <div class="form-group">
@@ -374,44 +356,28 @@
         </div>
         </details>
         <div class="flex gap-3 mt-4">
-          <button class="btn btn-primary" style="flex:1" onclick="saveLog()">테스트 저장</button>
-          <button class="btn btn-secondary" onclick="showNewLog()">새 테스트 입력</button>
+          <button class="btn btn-primary" style="flex:1" type="submit">테스트 저장</button>
+
         </div>
-      </div>
-
-
-
-
-    </div>
-  </div>
-</div>
-<div id="drive-laps" class="drive-section" hidden>
-  <div class="section-header">
-    <div>
-      <div class="section-title">랩타임 기록 관리</div>
-      <div class="section-sub">드라이버별 기록 추적 및 성능 분석</div>
-    </div>
-  </div>
-
-  <div class="grid-2 mb-6">
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>새 기록 입력</div>
-      <div class="form-group">
+      </div></form><form id="drive-laps" class="drive-section" hidden onsubmit="event.preventDefault();addLapTime()"><div class="card"><div class="dw-form-two"><div class="form-group">
         <label for="lt-driver">드라이버명</label>
         <input type="text" class="form-control" id="lt-driver" placeholder="이름 입력">
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label for="lt-date">날짜</label>
-          <input type="date" class="form-control" id="lt-date">
-        </div>
-        <div class="form-group">
+      </div><div class="form-group">
           <label for="lt-time">랩타임 (mm:ss.ms)</label>
           <input type="text" class="form-control" id="lt-time" placeholder="1:23.456">
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
+        </div></div><div class="form-group">
+        <label for="lt-note">메모</label>
+        <input type="text" class="form-control" id="lt-note" placeholder="특이사항 (선택)">
+      </div><div class="form-group">
+          <label for="lt-valid">유효 여부</label>
+          <select class="form-control" id="lt-valid">
+            <option value="valid">유효</option>
+            <option value="invalid">무효</option>
+          </select>
+        </div><details class="dw-details"><summary>날짜 · 주행 조건 · 테스트 연결 변경</summary><div class="dw-form-two"><div class="form-group">
+          <label for="lt-date">날짜</label>
+          <input type="date" class="form-control" id="lt-date">
+        </div><div class="form-group">
           <label for="lt-weather">날씨</label>
           <select class="form-control" id="lt-weather">
             <option value="맑음">☀️ 맑음</option>
@@ -419,107 +385,34 @@
             <option value="비">🌧 비</option>
             <option value="안개">🌫 안개</option>
           </select>
-        </div>
-        <div class="form-group">
+        </div><div class="form-group">
           <label for="lt-track">노면 상태</label>
           <select class="form-control" id="lt-track">
             <option value="건조">건조 (Dry)</option>
             <option value="습함">습함 (Damp)</option>
             <option value="젖음">젖음 (Wet)</option>
           </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="lt-note">메모</label>
-        <input type="text" class="form-control" id="lt-note" placeholder="특이사항 (선택)">
-      </div>
-      <div class="form-group">
+        </div><div class="form-group">
         <label for="lt-session">테스트 세션 연결 (선택)</label>
         <select class="form-control" id="lt-session">
           <option value="">연결 안함</option>
         </select>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
+      </div><div class="form-group">
           <label for="lt-session-num">세션 번호</label>
           <input type="text" class="form-control" id="lt-session-num" placeholder="예: S1, R2">
-        </div>
-        <div class="form-group">
-          <label for="lt-valid">유효 여부</label>
-          <select class="form-control" id="lt-valid">
-            <option value="valid">유효</option>
-            <option value="invalid">무효</option>
-          </select>
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
+        </div><div class="form-group">
           <label for="lt-tireset">타이어 세트</label>
           <input type="text" class="form-control" id="lt-tireset" placeholder="예: A1, B2">
-        </div>
-        <div class="form-group">
+        </div><div class="form-group">
           <label for="lt-setup-ver">셋업 버전</label>
           <input type="text" class="form-control" id="lt-setup-ver" placeholder="예: v1.2">
-        </div>
-      </div>
-      <button class="btn btn-primary w-full" id="drive-lap-save" onclick="addLapTime()">랩 기록 저장</button><button class="btn btn-ghost mt-4" onclick="driveNewLap()">새 랩 입력</button>
-    </div>
+        </div></div></details><div class="dw-editor-footer"><label class="dw-check"><input id="drive-continue" type="checkbox"> 저장 후 다음 랩 계속 입력</label><button class="btn btn-primary" id="drive-lap-save" type="submit">랩 기록 저장</button></div></div></form><form id="drive-feedback" class="drive-section" hidden onsubmit="event.preventDefault();saveFeedback()"><div class="card">
 
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>드라이버 통계</div>
-      <div id="driver-stats-list">
-        <div class="empty-state"><div class="empty-icon">🏁</div><p>기록을 추가하면 통계가 표시됩니다</p></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-2 mb-6">
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>기록 변화 추이</div>
-      <div class="chart-wrap">
-        <canvas id="lapTrendChart"></canvas>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>드라이버 비교 (최고기록)</div>
-      <div class="chart-wrap">
-        <canvas id="lapCompareChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title"><span class="dot"></span>선택 범위의 랩 기록</div>
-    <div style="overflow-x:auto">
-      <table class="lap-table" id="lap-table">
-        <thead>
-          <tr>
-            <th>#</th><th>드라이버</th><th>날짜</th><th>랩타임</th>
-            <th>날씨</th><th>노면</th><th>세션</th><th>타이어셋</th><th>셋업</th><th>메모</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="lap-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<div id="drive-feedback" class="drive-section" hidden>
-  <div class="section-header">
-    <div>
-      <div class="section-title">드라이버 피드백 & 셋업 히스토리</div>
-      <div class="section-sub">주행 후 피드백 기록 및 셋업 변경 효과 추적</div>
-    </div>
-  </div>
-
-  <div class="grid-2 mb-6">
-    <!-- Feedback Form -->
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>드라이버 피드백 입력</div>
       <div class="form-group">
         <label for="fb-driver">드라이버</label>
         <input type="text" class="form-control" id="fb-driver" placeholder="드라이버 이름">
       </div>
-      <div class="form-group">
+      <details class="dw-details"><summary>날짜 · 연결할 랩 · 세팅 변경</summary><div class="form-group">
         <label for="fb-date">날짜</label>
         <input type="date" class="form-control" id="fb-date">
       </div>
@@ -536,7 +429,11 @@
         </select>
       </div>
 
-      <div class="form-group"><label for="fb-lap-link">연결할 랩 기록 (선택)</label><select id="fb-lap-link" class="form-control" onchange="driveFeedbackLap(this.value)"></select></div><p class="drive-help">코너 진입~브레이크 감각은 높을수록 좋음. 언더·오버스티어는 높을수록 심함이며 종합 점수에 섞지 않습니다.</p>
+      <div class="form-group"><label for="fb-lap-link">연결할 랩 기록 (선택)</label><select id="fb-lap-link" class="form-control" onchange="driveFeedbackLap(this.value)"></select></div></details><div class="form-group mt-4">
+        <label for="fb-comment">추가 코멘트</label>
+        <textarea class="form-control" id="fb-comment" rows="3" placeholder="자세한 주행 감각 메모..."></textarea>
+      </div>
+      <label class="dw-check"><input id="drive-rate-enabled" type="checkbox" onchange="driveToggleRatings()"> 항목별 점수도 기록하기</label><div id="drive-ratings" hidden><p class="drive-help">코너 진입~브레이크 감각은 높을수록 좋음. 언더·오버스티어는 높을수록 심함이며 종합 점수에 섞지 않습니다.</p>
 
       <div class="rating-row">
         <div class="rating-label" style="width:120px;font-size:12px">🔀 코너 진입</div>
@@ -574,34 +471,8 @@
         <div class="rating-value" id="rv-oversteer">5</div>
       </div>
 
-      <div class="form-group mt-4">
-        <label for="fb-comment">추가 코멘트</label>
-        <textarea class="form-control" id="fb-comment" rows="3" placeholder="자세한 주행 감각 메모..."></textarea>
-      </div>
-      <button class="btn btn-primary w-full" id="drive-fb-save" onclick="saveFeedback()">피드백 저장</button><button class="btn btn-ghost mt-4" onclick="driveNewFeedback()">새 피드백 입력</button>
-    </div>
-
-    <!-- Radar Chart -->
-    <div>
-      <div class="card mb-4">
-        <div class="card-title"><span class="dot"></span>선택 범위의 최근 피드백</div>
-        <p class="drive-help">이전 평가 형식은 아래 기록 목록에서 확인할 수 있습니다.</p><div class="spider-container">
-          <canvas id="radarChart" height="280"></canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>피드백 변화 추이</div>
-        <div class="chart-wrap">
-          <canvas id="fbTrendChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card mb-6"><h3>피드백 기록</h3><div id="drive-feedback-list"></div></div>
-<!-- Setup Change Log -->
-  <div class="grid-2">
-    <div class="card">
+      </div><button class="btn btn-primary w-full" id="drive-fb-save" type="submit">피드백 저장</button>
+    </div></form><form id="drive-setup" class="drive-section" hidden onsubmit="event.preventDefault();saveSetupChange()"><div class="card">
       <div class="card-title"><span class="dot"></span>셋업 변경 기록</div>
       <div class="form-group">
         <label for="sh-date">날짜</label>
@@ -624,18 +495,9 @@
         <label for="sh-expect">기대 효과</label>
         <input type="text" class="form-control" id="sh-expect" placeholder="예: 언더스티어 감소">
       </div>
-      <button class="btn btn-primary w-full" id="drive-setup-save" onclick="saveSetupChange()">셋업 변경 기록</button><button class="btn btn-ghost mt-4" onclick="driveNewSetup()">새 세팅 입력</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span class="dot"></span>셋업 변경 히스토리</div>
-      <div id="setup-history-list">
-        <div class="empty-state"><div class="empty-icon">🔧</div><p>셋업 변경 기록이 없습니다</p></div>
-      </div>
-    </div>
-  </div>
-
-  </div><section id="drive-compare" class="drive-section" hidden><div class="card"><h3>테스트 전후 비교</h3><p class="drive-help">같은 드라이버의 유효 랩만 비교합니다. 장소·날씨·노면·타이어 조건도 함께 확인하세요. 시간 차이가 세팅 변경만의 효과를 의미하지는 않습니다.</p><div class="drive-toolbar"><label>변경 전 테스트<select id="drive-before" class="form-control" onchange="renderDriveComparison()"></select></label><label>변경 후 테스트<select id="drive-after" class="form-control" onchange="renderDriveComparison()"></select></label></div><div id="drive-comparison"></div></div></section>
+      <button class="btn btn-primary w-full" id="drive-setup-save" type="submit">셋업 변경 기록</button>
+    </div></form><section id="drive-compare" class="drive-section" hidden><div class="card"><h3>테스트 전후 비교</h3><p class="drive-help">같은 드라이버의 유효 랩만 비교합니다. 장소·날씨·노면·타이어 조건도 함께 확인하세요. 시간 차이가 세팅 변경만의 효과를 의미하지는 않습니다.</p><div class="drive-toolbar"><label>변경 전 테스트<select id="drive-before" class="form-control" onchange="renderDriveComparison()"></select></label><label>변경 후 테스트<select id="drive-after" class="form-control" onchange="renderDriveComparison()"></select></label></div><div id="drive-comparison"></div></div></section></dialog>
+<div hidden><select id="drive-session"></select><table><tbody id="lap-tbody"></tbody></table><div id="drive-feedback-list"></div><div id="setup-history-list"></div></div>
 </div>
 
 <div id="tab-fuel" class="tab-pane">
@@ -1939,6 +1801,7 @@
 <script src="js/competition-date.js"></script>
 <script src="js/inspection.js"></script>
 <script src="js/driving.js"></script>
+<script src="js/drive-workspace.js"></script>
 <script src="js/fuel.js"></script>
 
 

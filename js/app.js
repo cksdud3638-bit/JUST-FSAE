@@ -104,7 +104,7 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   btn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
   if (name === 'home')     { renderHome(); }
-  if (name === 'driving')  { driveShow(driveTarget || driveView); }
+  if (name === 'driving')  { if(driveTarget)driveShow(driveTarget);else renderDriving(); }
   if (name === 'fuel')     { calcFuel(); }
   if (name === 'parts-budget') { renderPartsBudget(); renderWeightDistribution(); }
   if (name === 'parts')    { renderParts(); updateSliderFill(); updateWheelbaseMarkers(); }
