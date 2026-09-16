@@ -7,13 +7,23 @@
     parts:[{id:101,name:'기존 서스펜션 암',cat:'기존 파트',qty:2,cost:50000,weight:450,axlePos:250},{id:102,name:'이름이 긴 기존 부품 — 규격 및 상세 메모 확인용',qty:1,cost:0,weight:1250,note:'기존 데이터 보존 확인'}]
   };
   const listeners=[];
-  const get=path=>path.split('/').slice(1).reduce((a,k)=>a?.[k],root) ?? null;
+  let authCallback=null;
+  const testUser=()=>sessionStorage.getItem('just-test-auth')==='yes'?{uid:'local-team'}:null;
+  const mockAuth={
+    setPersistence:async()=>{},
+    onAuthStateChanged:fn=>{authCallback=fn;queueMicrotask(()=>fn(testUser()));},
+    signInWithEmailAndPassword:async(email,password)=>{if(password!=='local-test-only')throw{code:'auth/invalid-credential'};sessionStorage.setItem('just-test-auth','yes');authCallback?.(testUser());},
+    signOut:async()=>{sessionStorage.removeItem('just-test-auth');authCallback?.(null);}
+  };
+  const auth=()=>mockAuth;auth.Auth={Persistence:{SESSION:'session'}};
+  const get=path=>path==='members/local-team'?true:path.split('/').slice(1).reduce((a,k)=>a?.[k],root) ?? null;
   const snap=value=>({val:()=>JSON.parse(JSON.stringify(value))});
   const notify=()=>listeners.forEach(([path,fn])=>fn(snap(get(path))));
   const persist=()=>{localStorage.setItem(key,JSON.stringify(root));notify();};
   const set=(path,value)=>{const keys=path.split('/').slice(1);if(!keys.length)root=value;else{let node=root;keys.slice(0,-1).forEach(k=>node=node[k]??={});node[keys.at(-1)]=value;}persist();};
-  window.firebase={initializeApp(){},database:()=>({ref:path=>({
+  window.firebase={initializeApp(){},auth,database:()=>({goOffline(){},goOnline(){},ref:path=>({
     on:(event,fn)=>{listeners.push([path,fn]);queueMicrotask(()=>fn(snap(get(path))));},
+    off:(event,fn)=>{const i=listeners.findIndex(x=>x[0]===path&&x[1]===fn);if(i>=0)listeners.splice(i,1);},
     once:async()=>snap(get(path)),
     set:async value=>set(path,value), update:async updates=>{
       for(const [relative,value] of Object.entries(updates)){

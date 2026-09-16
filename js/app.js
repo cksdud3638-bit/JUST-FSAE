@@ -122,13 +122,14 @@ function switchTabByName(name) {
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
+function startApp() {
   const today = driveToday();
   ['lt-date','log-date','fb-date','sh-date'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
 
+  initRadiatorSync();
   initPartsBudget();
   initCompetitionDate();
   initDriving();
@@ -136,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHome();
   updateSliderFill();
 
-  db.ref('just').on('value', function(snapshot) {
+  authWatch('just', function(snapshot) {
     const data = snapshot.val() || {};
     receiveDriving(data);
     if (data.budget)         S.budget         = data.budget;
@@ -177,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let _localSaveTs = 0;
   const _origSave = save;
   // Wrap save to timestamp local saves for remote-change detection
-  db.ref('just/lastModifier').on('value', function(snap) {
+  authWatch('just/lastModifier', function(snap) {
     const mod = snap.val() || '';
     // If modifier doesn't start with "나 ·" it was another user
     if (mod && !mod.startsWith('나 ·')) {
@@ -185,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  db.ref('just/inspection').on('value', function(snapshot) {
+  authWatch('just/inspection', function(snapshot) {
     const newState = snapshot.val() || {};
     S.inspection = newState;
     applyInspectionState();
@@ -222,4 +223,5 @@ document.addEventListener('DOMContentLoaded', () => {
       if (next >= 0 && next < tabs.length) tabs[next].click();
     }
   }, {passive: true});
-});
+}
+document.addEventListener('DOMContentLoaded', () => initAuth(startApp));

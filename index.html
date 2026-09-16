@@ -7,12 +7,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/driving.css">
+<link rel="stylesheet" href="css/auth.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
+<section id="auth-gate" class="auth-gate" aria-labelledby="auth-title">
+  <form id="auth-form" class="auth-card">
+    <p class="auth-brand">JUST · FORMULA STUDENT</p>
+    <h1 id="auth-title">팀 전용 공간</h1>
+    <p>팀 공용 비밀번호로 로그인하세요.</p>
+    <label for="auth-password">비밀번호</label>
+    <input id="auth-password" type="password" autocomplete="current-password" required maxlength="4096" disabled>
+    <label class="auth-show"><input id="auth-show-password" type="checkbox"> 비밀번호 표시</label>
+    <button id="auth-submit" type="submit" disabled>로그인</button>
+    <p id="auth-status" role="status" aria-live="polite">로그인 상태를 확인하고 있습니다…</p>
+    <small>비밀번호를 잊었다면 팀 관리자에게 문의하세요.<br>공용 기기에서는 사용 후 로그아웃해 주세요.</small>
+    <noscript>로그인하려면 브라우저의 JavaScript를 켜 주세요.</noscript>
+  </form>
+</section>
+<div id="auth-app" hidden inert style="display:none">
 <!-- HEADER -->
 <header class="header">
   <div class="header-logo">
@@ -32,6 +49,7 @@
     <span class="season-badge">2026 SEASON</span>
     <button class="btn btn-secondary btn-sm" id="btn-import">📂 불러오기</button>
     <button class="btn btn-primary btn-sm" id="btn-export">💾 저장</button>
+    <button class="btn btn-secondary btn-sm" id="auth-logout" type="button">로그아웃</button>
     <span class="header-badge">● LIVE</span>
     <input type="file" id="import-input" accept=".json" style="display:none" onchange="handleImport(this)">
   </div>
@@ -1797,6 +1815,9 @@
 </div><!-- end tab-radiator -->
 
 </main>
+</div>
+<script src="js/auth-config.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/competition-date.js"></script>
 <script src="js/inspection.js"></script>

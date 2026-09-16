@@ -10,6 +10,7 @@ http.createServer((req, res) => {
   if (pathname === '/test.html') {
     const html=fs.readFileSync(path.join(root,'index.html'),'utf8')
       .replace(/<script src="https:\/\/www.gstatic.com\/firebasejs\/[^\"]+"><\/script>/g,'')
+      .replace('<script src="js/auth-config.js"></script>', '<script>const JUST_AUTH_CONFIG={teamEmail:"local-test@example.invalid"};</script>')
       .replace('</head>','<script src="tests/mock-firebase.js"></script></head>');
     res.setHeader('Content-Type','text/html; charset=utf-8');
     res.setHeader('Cache-Control','no-store');res.end(html);return;

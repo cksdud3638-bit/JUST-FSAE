@@ -819,6 +819,8 @@ function updateSensSection() {
 
 // ── 팬 입력값 Firebase 저장 ────────────────────────────
 function saveRadiatorFan() {
+  if (typeof authUid !== 'undefined' && !authUid) return;
+  if (typeof restoringRadiator !== 'undefined' && restoringRadiator) return;
   if (typeof db === 'undefined' || typeof S === 'undefined' || typeof save === 'undefined') return;
   var isFan  = !!document.getElementById('fan-mode-fan')?.classList.contains('fan-mode-active');
   var isMeas = !!document.getElementById('fan-mode-measured')?.classList.contains('fan-mode-active');
@@ -882,12 +884,14 @@ function loadRadiatorFan(d) {
 })();
 
 // ── 초기 Firebase 로드 (페이지 로드 1회) ─────────────
-if (typeof db !== 'undefined') {
-  db.ref('just/radiatorFan').once('value', function(snap) {
-    var data = snap.val();
-    if (data) {
-      setTimeout(function() { loadRadiatorFan(data); calcFanMode(); }, 300);
-    }
+let restoringRadiator = false;
+function initRadiatorSync(){
+  let loaded=false;
+  authWatch('just/radiatorFan',function(snap){
+    if(loaded)return;loaded=true;
+    const data=snap.val();if(!data)return;
+    restoringRadiator=true;
+    try{loadRadiatorFan(data);calcFanMode();}finally{restoringRadiator=false;}
   });
 }
 
