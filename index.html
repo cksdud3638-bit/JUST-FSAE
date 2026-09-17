@@ -16,16 +16,20 @@
 </head>
 <body>
 <section id="auth-gate" class="auth-gate" aria-labelledby="auth-title">
-  <form id="auth-form" class="auth-card">
-    <p class="auth-brand">JUST · FORMULA STUDENT</p>
-    <h1 id="auth-title">팀 전용 공간</h1>
-    <p>팀 공용 비밀번호로 로그인하세요.</p>
-    <label for="auth-password">비밀번호</label>
-    <input id="auth-password" type="password" autocomplete="current-password" required maxlength="4096" disabled>
+  <form id="auth-form" class="card auth-card">
+    <header class="auth-heading">
+      <h1 id="auth-title">JUST</h1>
+      <p class="auth-subtitle">Formula Student<br>Integrated Management System</p>
+    </header>
+    <p class="card-title auth-access">Team Access</p>
+    <div class="form-group auth-field">
+      <label for="auth-password">비밀번호</label>
+      <input id="auth-password" class="form-control" type="password" autocomplete="current-password" aria-describedby="auth-status" required maxlength="4096" disabled>
+    </div>
     <label class="auth-show"><input id="auth-show-password" type="checkbox"> 비밀번호 표시</label>
-    <button id="auth-submit" type="submit" disabled>로그인</button>
+    <button id="auth-submit" class="btn btn-primary" type="submit" disabled>로그인</button>
     <p id="auth-status" role="status" aria-live="polite">로그인 상태를 확인하고 있습니다…</p>
-    <small>비밀번호를 잊었다면 팀 관리자에게 문의하세요.<br>공용 기기에서는 사용 후 로그아웃해 주세요.</small>
+    <small class="auth-footer">JUST Formula Student Team</small>
     <noscript>로그인하려면 브라우저의 JavaScript를 켜 주세요.</noscript>
   </form>
 </section>
