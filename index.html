@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/driving.css">
 <link rel="stylesheet" href="css/auth.css">
+<link rel="stylesheet" href="css/finance.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -66,6 +67,7 @@
   <button class="tab-btn" data-tab="driving"><span class="tab-number">2</span>주행 테스트 관리</button>
   <button class="tab-btn" data-tab="fuel"><span class="tab-number">3</span>연료 전략</button>
   <button class="tab-btn" data-tab="parts-budget"><span class="tab-number">4</span>부품·예산 관리</button>
+  <button class="tab-btn" data-tab="finance"><span class="tab-number">₩</span>총무·회계 관리</button>
   <button class="tab-btn" data-tab="damper"><span class="tab-number">5</span>댐퍼 세팅 계산기</button>
   <button class="tab-btn" data-tab="radiator"><span class="tab-number">6</span>라디에이터 계산기</button>
 </nav>
@@ -646,6 +648,44 @@
 <!-- ═══════════════════════════════════════════════
      TAB 6: BUDGET
 ═══════════════════════════════════════════════ -->
+
+<div id="tab-finance" class="tab-pane">
+  <div class="fin-head"><div><h2>총무·회계 관리</h2><p>팀의 수입부터 지출, 증빙과 개인 선결제 정산까지 관리합니다.</p></div><button id="fin-add" class="fin-primary" type="button">+ 거래 등록</button></div>
+  <div id="fin-message" role="status" aria-live="polite">서버 연결 중…</div>
+  <div id="fin-summary" class="fin-summary"></div>
+  <p class="fin-help">장부 잔액 = 이월금 + 수입 − 팀 자금 결제 − 완료된 환급입니다. 개인 선결제는 환급 전까지 통장 잔액에서 빠지지 않습니다. 실제 통장과 대조해 주세요.</p>
+  <div class="fin-actions"><button id="fin-settings-toggle" type="button">이월금·장부 시작일 설정</button><button id="fin-csv" type="button">조회 내역 CSV</button><button id="fin-backup" type="button">회계·증빙 전체 백업</button><button id="fin-restore" type="button">회계 백업 복원</button><input id="fin-restore-file" type="file" accept="application/json,.json" hidden></div>
+  <form id="fin-settings" class="fin-panel" hidden><label>장부 시작일<input id="fin-start" type="date" required></label><label>시작일 기준 이월금 (원)<input id="fin-opening" type="number" min="0" max="1000000000000" step="1" required></label><button type="submit">설정 저장</button><p class="fin-help">이월금은 시작일 직전 잔액입니다. 기존 거래보다 늦은 시작일은 저장할 수 없습니다.</p></form>
+  <form id="fin-form" class="fin-panel" hidden>
+    <h3 id="fin-form-title">거래 등록</h3>
+    <div class="fin-grid">
+      <label>구분<select id="fin-kind"><option value="expense">지출</option><option value="income">수입</option></select></label>
+      <label>거래일<input id="fin-date" type="date" required></label>
+      <label>금액 (원)<input id="fin-amount" type="number" min="1" max="1000000000000" step="1" required></label>
+      <label>항목<input id="fin-title" maxlength="200" required placeholder="예: 11월 회비 / 가공비"></label>
+      <label>분류<input id="fin-category" list="fin-categories" maxlength="100" required></label>
+      <datalist id="fin-categories"><option value="회비"><option value="학교 지원금"><option value="후원금"><option value="부품·제작비"><option value="대회 참가비"><option value="식비"><option value="교통·숙박비"><option value="기타 운영비"></datalist>
+      <label>재원<input id="fin-fund" maxlength="100" required placeholder="예: 회비 / 학교 지원금 / 후원금"></label>
+      <label>입금자 / 담당자 / 선결제자<input id="fin-person" maxlength="100"></label>
+      <label>거래처<input id="fin-vendor" maxlength="200"></label>
+      <label>결제 구분<select id="fin-payer"><option value="team">팀 자금 결제</option><option value="personal">개인 선결제</option></select></label>
+      <div id="fin-settlement" class="fin-wide" hidden><label><span><input id="fin-reimbursed" type="checkbox">팀에서 환급 완료</span></label><label>환급일<input id="fin-reimbursementDate" type="date"></label></div>
+      <label class="fin-wide">부품·예산 항목 연결 (선택)<select id="fin-link"><option value="">연결 안 함</option></select><span id="fin-link-warning" class="fin-help">기존 부품 지출은 자동으로 회계 장부에 합산하지 않습니다. 실제 결제 건만 한 번 등록하세요.</span></label>
+      <label class="fin-wide">메모<textarea id="fin-note" maxlength="2000"></textarea></label>
+      <label class="fin-wide">영수증·거래명세서 (JPG·PNG·PDF, 1개 / 500KB 이하)<input id="fin-receipt" type="file" accept="image/jpeg,image/png,application/pdf"><span id="fin-receipt-label">첨부된 증빙 없음</span></label>
+    </div>
+    <div class="fin-actions"><button id="fin-submit" type="submit" class="fin-primary">거래 저장</button><button id="fin-cancel" type="button">닫기</button><button id="fin-remove-receipt" type="button">증빙 첨부 해제</button></div>
+  </form>
+  <div class="fin-panel"><div class="fin-toolbar">
+    <label>조회 월<input id="fin-month" type="month"></label><button id="fin-all" type="button">전체 기간</button>
+    <label>구분<select id="fin-filter"><option value="">전체 거래</option><option value="income">수입</option><option value="expense">지출</option><option value="pending">환급 대기</option></select></label>
+    <label class="fin-search">검색<input id="fin-search" type="search" placeholder="항목, 담당자, 거래처, 재원 검색"></label>
+    <label class="fin-check"><input id="fin-voids" type="checkbox">취소 거래 표시</label>
+  </div><p id="fin-period" class="fin-help"></p><p class="fin-help">상단 수입·지출 합계는 조회 월 전체 기준이며, 검색·구분 필터는 아래 목록과 CSV에 적용됩니다. <span id="fin-count"></span></p></div>
+  <div class="fin-table-wrap"><table class="fin-table"><thead><tr><th>거래일</th><th>구분</th><th>항목 / 분류 / 재원</th><th>금액</th><th>거래처 / 담당자</th><th>결제·환급 상태</th><th>증빙</th><th>관리</th></tr></thead><tbody id="fin-rows"></tbody></table></div>
+  <p class="fin-help">취소 처리한 거래는 기록을 보존하고 합계에서 제외하며 복원할 수 있습니다. 팀 공용 계정으로 로그인한 팀원이 함께 사용하는 장부입니다.</p>
+</div>
+
 <div id="tab-parts-budget" class="tab-pane">
 <div class="section-header"><div><h2>부품·예산 관리</h2><p class="pb-help">부품의 계획부터 구매, 지출과 무게까지 한곳에서 관리합니다.</p></div><div class="pb-actions"><label>내보내기 범위<select id="pb-export-scope"><option value="all">전체</option><option value="category">선택 파트</option><option value="over">예상 비용 초과</option><option value="unpurchased">미구매 부품</option><option value="other">기타 지출</option></select></label><button id="pb-export" type="button">JSON 내보내기</button><button type="button" onclick="exportBudgetPDF()">PDF</button><button type="button" onclick="pbCopySummary()">요약 복사</button></div></div>
 <p id="pb-message" role="status" aria-live="polite">서버 연결 중…</p><div id="pb-summary" class="pb-summary"></div><p id="pb-warning" class="pb-warning" role="status"></p>
@@ -1834,6 +1874,7 @@
 <script src="js/weight.js"></script>
 <script src="js/damper.js"></script>
 <script src="js/radiator.js"></script>
+<script src="js/finance.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

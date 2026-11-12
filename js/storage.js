@@ -109,6 +109,7 @@ async function exportData() {
     parts: S.parts,
     budget: S.budget,
     partsBudget: pbData || PB.migrate(S),
+    finance: financeData,
     cornerWeights: S.cornerWeights,
     wheelbase: S.wheelbase,
     targetFrontPct: S.targetFrontPct,
@@ -151,10 +152,12 @@ function handleImport(input) {
       if(data.reportType) throw Error('이 파일은 보고서입니다. 상단 저장 버튼으로 만든 전체 JSON 백업을 선택하세요.');
       if(data.compDate && !competitionDay(data.compDate))throw Error('대회 날짜가 올바르지 않습니다.');
       const importedLedger = PB.fromBackup(data,pbData || PB.migrate(S));
+      const importedFinance = data.finance !== undefined ? FIN.decode(data.finance) : null;
       // Validate first; write all imported keys atomically, retaining absent keys.
       const keys=['compDate','inspectionReview','inspection','inspectionMeta','lapTimes','testLogs','feedbacks','setupHistory','parts','budget','cornerWeights','wheelbase','targetFrontPct','driverConfig','fuelConfig'];
       const updates=Object.fromEntries(keys.filter(k=>data[k]!==undefined).map(k=>[k,data[k]]));
       updates.partsBudget=importedLedger;
+      if(importedFinance)updates.finance=importedFinance;
       if(data.inspection!==undefined && data.inspectionReview===undefined)updates.inspectionReview={};
       setSyncState('saving');
       await db.ref('just').update(updates);

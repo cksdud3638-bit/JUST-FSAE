@@ -105,6 +105,7 @@ function switchTab(name, btn) {
   btn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
   if (name === 'home')     { renderHome(); }
   if (name === 'driving')  { if(driveTarget)driveShow(driveTarget);else renderDriving(); }
+  if (name === 'finance') { renderFinance(); }
   if (name === 'fuel')     { calcFuel(); }
   if (name === 'parts-budget') { renderPartsBudget(); renderWeightDistribution(); }
   if (name === 'parts')    { renderParts(); updateSliderFill(); updateWheelbaseMarkers(); }
@@ -131,6 +132,7 @@ function startApp() {
 
   initRadiatorSync();
   initPartsBudget();
+  initFinance();
   initCompetitionDate();
   initDriving();
   buildInspection();

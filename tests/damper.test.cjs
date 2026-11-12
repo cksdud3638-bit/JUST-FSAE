@@ -194,6 +194,7 @@ test('shared backup supports unified ledger; damper calculations do not write sh
   vm.runInContext(fs.readFileSync('js/storage.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('js/competition-date.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('js/parts-budget.js', 'utf8'), context);
+  vm.runInContext(fs.readFileSync('js/finance.js', 'utf8'), context);
   vm.runInContext("S.parts = [{name:'test',weight:123,qty:2}]; save('parts');", context);
   assert.equal(writes[0][0], 'just/parts'); assert.equal(writes[0][1][0].weight, 123);
   const before = vm.runInContext('JSON.stringify(S)', context);
